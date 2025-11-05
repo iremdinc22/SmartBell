@@ -1,0 +1,24 @@
+# ---- .NET (backend) ----
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vs/
+
+# ---- React (frontend) ----
+Zenith-Suites-Website/node_modules/
+Zenith-Suites-Website/build/
+Zenith-Suites-Website/dist/
+Zenith-Suites-Website/.next/
+Zenith-Suites-Website/.env*
+Zenith-Suites-Website/.DS_Store
+
+# ---- Genel ----
+*.log
+.DS_Store
+Thumbs.db
+.env
+.vscode/
+.idea/
