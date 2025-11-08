@@ -14,7 +14,12 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         _db = db;
         _set = _db.Set<T>();
     }
-
+    //rana
+    public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _set.FirstOrDefaultAsync(predicate);
+    }
+    //--
     public async Task<T?> GetByIdAsync(Guid id) => await _set.FindAsync(id);
 
     public async Task<List<T>> GetAllAsync() => await _set.AsNoTracking().ToListAsync();

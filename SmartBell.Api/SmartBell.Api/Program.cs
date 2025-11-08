@@ -5,6 +5,8 @@ using SmartBell.Api.Hubs;
 using SmartBell.Api.Mapping;
 using SmartBell.Api.Services.Implementations;
 using SmartBell.Api.Services.Interfaces; // AutoMapper profili
+using SmartBell.Api.Services.Services;
+using SmartBell.Api.Integrations; // FaceVerificationClient'ın yeni konumu
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +25,11 @@ builder.Services.AddProjectServices();
 ////builder.Services.AddScoped<IRobotService, RobotService>();
 //// builder.Services.AddScoped<IRoomService, RoomService>();
 //// builder.Services.AddScoped<IReservationService, ReservationService>();
+// a) Python Microservice için HttpClient kaydı
+builder.Services.AddHttpClient<FaceVerificationClient>(); 
+
+// b) Yüz İş Mantığı Servisi (IFaceService) kaydı
+builder.Services.AddScoped<IFaceService, FaceService>(); 
 
 // 5) SignalR servisleri
 builder.Services.AddSignalR();
