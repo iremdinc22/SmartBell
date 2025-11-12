@@ -7,6 +7,7 @@ using SmartBell.Api.Services.Implementations;
 using SmartBell.Api.Services.Interfaces; // AutoMapper profili
 using SmartBell.Api.Services.Services;
 using SmartBell.Api.Integrations; // FaceVerificationClient'ın yeni konumu
+using SmartBell.Api.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,9 +48,16 @@ builder.Services.AddCors(opt =>
 // 7) MVC & Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "SmartBell API", Version = "v1" });
+    c.OperationFilter<FileUploadOperationFilter>();
+});
 
 var app = builder.Build();
+
+app.MapGet("/health", () => Results.Ok(new { status = "UP" }));
+
 
 // 8) Dev Swagger
 if (app.Environment.IsDevelopment())
@@ -59,11 +67,13 @@ if (app.Environment.IsDevelopment())
 }
 
 // 9) Middleware sırası
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseCors("client");
 
 // 10) Routes
 app.MapControllers();
+// Basit bir test sayfası için
+app.MapGet("/", () => "SmartBell API çalışıyor! Bu bir geçici test sayfasıdır.");
 
 // 11) SignalR Hub endpoint’i (frontend URL’ini buna göre ayarla)
 app.MapHub<RobotHub>("/hubs/robot");

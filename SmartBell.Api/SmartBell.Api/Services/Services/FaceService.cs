@@ -7,10 +7,10 @@ using System.IO;
 
 namespace SmartBell.Api.Services.Services;
 
-public class FaceService : IFaceService
+public class FaceService : IFaceService     // Implement IFaceService
 {
-    private readonly FaceVerificationClient _faceClient;
-    private readonly IGenericRepository<FaceRec> _faceRepository;
+    private readonly FaceVerificationClient _faceClient;            // FaceVerificationClient alanı
+    private readonly IGenericRepository<FaceRec> _faceRepository;   // Generic Repository for FaceRec entity
 
     /// <summary>
     /// Servis bağımlılıklarını Constructor Injection ile alır.
