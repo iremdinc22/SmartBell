@@ -21,8 +21,8 @@ namespace SmartBell.Api.Integrations
 
     // Doğrulama (Verification) işlemi için Python'a gönderilen istekte kullanılacak DTO
     public record VerificationRequest(
-        List<float> KnownEmbedding, 
-        List<float> LiveEmbedding
+        List<float> known_embedding, 
+        List<float> live_embedding
     );
     
     // Doğrulama (Verification) işlemi sonucunda Python'dan Similarity Score almak için kullanılır.

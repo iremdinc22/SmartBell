@@ -13,9 +13,6 @@ from typing import List  #**
 # Import functions from project modules
 from services.face_embed import get_face_embedding, compare_faces
 
-#bunlar db işlemleri içindi
-#from appdb.database import register_person, save_embedding, get_embedding_by_code
-#from appdb.database import init_db, get_connection
 
 app = FastAPI(title="Face Verification Microservice")  #this allow us to reach all FastAPI feature through app variable
 
@@ -24,10 +21,6 @@ MODEL_NAME = "buffalo_l"
 # Set the verification threshold (based on our previous testing)
 VERIFICATION_THRESHOLD = 0.5   #threshold may be change
 
-# @app.on_event("startup")
-# def on_startup():
-#     """Initializes the SQLite database tables on application startup."""
-#     init_db()
 
 app.add_middleware(
     CORSMiddleware,

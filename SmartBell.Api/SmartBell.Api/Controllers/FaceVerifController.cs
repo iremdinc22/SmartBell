@@ -24,6 +24,7 @@ public class FaceVerifController : ControllerBase
     public async Task<IActionResult> EnrollReservationFace(
         [FromForm] CreateEmbeddingDtos request)
     {
+        //return Ok(new { test = "enroll hit" });
         if (request.File == null || request.File.Length == 0)         // if file is null or empty give error
             return BadRequest(new { error = "Image file is required for enrollment." });
         
