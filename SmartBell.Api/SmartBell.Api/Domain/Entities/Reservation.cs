@@ -41,7 +41,7 @@ public class Reservation
     public string Status { get; set; } = "Pending"; // Pending, Confirmed, Cancelled
 
     [Required, MaxLength(12)] 
-    public string BookingCode { get; set; } = GenerateBookingCode();
+    public string BookingCode { get; set; } //= GenerateBookingCode();
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
@@ -51,6 +51,8 @@ public class Reservation
     [NotMapped] 
     public int Nights => Math.Max(0, CheckOut.DayNumber - CheckIn.DayNumber);
 
-    private static string GenerateBookingCode()
-        => Convert.ToHexString(Guid.NewGuid().ToByteArray()[..4]).ToUpperInvariant();
+    //bu kısmı reservation service e taşıdım
+    
+    // private static string GenerateBookingCode()
+    //     => Convert.ToHexString(Guid.NewGuid().ToByteArray()[..4]).ToUpperInvariant();
 }

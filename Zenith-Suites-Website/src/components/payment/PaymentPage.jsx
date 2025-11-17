@@ -2,6 +2,10 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createReservation } from "@/services/reservations";
+import { enrollFace } from "@/services/faceVerif";
+
+const MAX_IMAGE_MB = 5;
+const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -42,10 +46,54 @@ const PaymentPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [photoFile, setPhotoFile] = useState(null); // File | null
+  const [photoPreview, setPhotoPreview] = useState(""); // data URL
+  const [photoError, setPhotoError] = useState("");
+
   const handleContactChange = (e) =>
     setContact((p) => ({ ...p, [e.target.name]: e.target.value }));
   const handleInputChange = (e) =>
     setPaymentData((p) => ({ ...p, [e.target.name]: e.target.value }));
+
+    // Photo handlers
+  const handlePhotoChange = (e) => {
+    setPhotoError("");
+    const file = e.target.files?.[0];
+    if (!file) {
+      setPhotoFile(null);
+      setPhotoPreview("");
+      return;
+    }
+
+    // Validate type
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Please upload an image file.");
+      setPhotoFile(null);
+      setPhotoPreview("");
+      return;
+    }
+
+    // Validate size
+    if (file.size > MAX_IMAGE_BYTES) {
+      setPhotoError(`Image must be <= ${MAX_IMAGE_MB} MB.`);
+      setPhotoFile(null);
+      setPhotoPreview("");
+      return;
+    }
+
+    setPhotoFile(file);
+
+    // Preview
+    const reader = new FileReader();
+    reader.onload = (ev) => setPhotoPreview(String(ev.target?.result || ""));
+    reader.readAsDataURL(file);
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    setPhotoError("");
+  };
 
   const validate = () => {
     if (!contact.fullName || !contact.email) return "Please enter your full name and email.";
@@ -63,13 +111,20 @@ const PaymentPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+    setPhotoError("");
     const v = validate();
     if (v) {
       setErrorMsg(v);
       return;
     }
 
+    if (photoFile && photoFile.size > MAX_IMAGE_BYTES) {
+      setPhotoError(`Image must be <= ${MAX_IMAGE_MB} MB.`);
+      return;
+    }
+
     setIsProcessing(true);
+
     try {
       // Backend'in beklediği CreateReservationDto
       const dto = {
@@ -83,19 +138,57 @@ const PaymentPage = () => {
         phone: contact.phone,
       };
 
-      await createReservation(dto); // POST /api/reservations
+      console.log("createReservation DTO:", dto);   //** */
 
-      // Başarı: onay sayfasına geç
+      const enrollData = await createReservation(dto); // POST /api/reservations
+
+      console.log("createReservation raw:", enrollData); // { id: "...", bookingCode: "..." }
+
+
+      // normalize id / bookingCode
+      const reservationId =
+        enrollData?.id ?? enrollData?.Id ?? enrollData?.reservationId ?? enrollData?.ReservationId ?? null;
+      const bookingCode =
+        enrollData?.bookingCode ??
+        enrollData?.BookingCode ??
+        enrollData?.booking_code ??
+        enrollData?.Booking_Code ??
+        null;
+
+      console.log("Normalized ids:", { reservationId, bookingCode });
+
+      // Face enroll
+      
+      if (photoFile) {
+        try {
+          if (!reservationId || !bookingCode) {
+            console.warn("Skipping enroll: missing reservationId or bookingCode.");
+            setPhotoError("Face enroll skipped: missing booking data from server.");
+          } else {
+            console.log("Calling enrollFace with:", { reservationId, bookingCode, fileName: photoFile.name });
+            const enrollResp = await enrollFace(reservationId, bookingCode, photoFile);
+            console.log("enroll response:", enrollResp);
+          }
+        } catch (err) {
+          console.error("Face enroll failed:", err);
+          setPhotoError("Face enroll failed, but booking succeeded.");
+        }
+      }
+
+
+      const finalBookingCode = enrollData.bookingCode;
+      const finalReservationRef = enrollData.id;
+
       navigate("/confirmation", {
         state: {
-          bookingId:
-            crypto?.randomUUID?.() || `BKG_${Math.random().toString(36).slice(2, 10)}`,
-          bookingRef: `Z-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          bookingId: finalBookingCode,
+          bookingRef: finalReservationRef,
           total: summary.price * 1.1, // örnek vergi eklendi
           currency: summary.currency,
         },
         replace: true,
       });
+
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || "Payment error.");
@@ -103,6 +196,8 @@ const PaymentPage = () => {
       setIsProcessing(false);
     }
   };
+
+  
 
   // booking yoksa uyarı göster (tamamen boş dönmeyelim)
   if (!bookingFromState) {
@@ -175,6 +270,41 @@ const PaymentPage = () => {
                       onChange={handleContactChange}
                       required
                     />
+                  </div>
+                  {/* --- Photo upload UI --- */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-neutral-300 mb-2" htmlFor="photo">
+                      Upload a photo of your face — used for Face Verification
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        id="photo"
+                        name="photo"
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="text-sm text-neutral-300"
+                      />
+                      {photoPreview ? (
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={photoPreview}
+                            alt="preview"
+                            style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={clearPhoto}
+                            className="text-xs text-neutral-400 underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-neutral-500">Max {MAX_IMAGE_MB} MB. JPG/PNG recommended.</p>
+                      )}
+                    </div>
+                    {photoError && <p className="text-red-400 text-sm mt-2">{photoError}</p>}
                   </div>
                 </div>
               </section>

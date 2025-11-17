@@ -18,6 +18,8 @@ export const api = {
   get: (url, params) => request(url + (params ? `?${new URLSearchParams(params)}` : "")),
   post: (url, json) => request(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(json) }),
   put: (url, json) => request(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(json) }),
+
+  postForm: (url, form) => request(url, { method: "POST", body: form }),
 };
 
 

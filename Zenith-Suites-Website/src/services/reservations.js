@@ -22,6 +22,7 @@ export function createReservation(dto) {
   //   email?: string,
   //   phone: string
   // }
+  console.log("createReservation dto:", dto);
   return api.post("/reservations", dto);
 }
 
