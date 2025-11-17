@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
  * @param {string|number|null} bookingCode
  * @param {File} file
  * @returns {Promise<any>} backend'den dönen res.data
+ * @returns {Promise<{status: string, message: string, score: number}>}
  */
 export function enrollFace(reservationId, bookingCode, file) {
   if (!file) return Promise.reject(new Error("File is required for enrollFace."));
@@ -19,3 +20,24 @@ export function enrollFace(reservationId, bookingCode, file) {
   // Not: url burada "/FaceVerif/enroll" olmalı çünkü lib.api BASE_URL zaten "http://.../api"
   return api.postForm("/FaceVerif/enroll", form);
 }
+
+export async function verifyFace(bookingCode, file) {
+  if (!bookingCode || !file) {
+    return Promise.reject(new Error("BookingCode and File are required for verifyFace."));
+  }
+
+  const formData = new FormData();
+  formData.append("BookingCode", bookingCode);
+  formData.append("File", file);
+
+  try {
+    const response = await api.postForm("/FaceVerif/verify", formData);
+    console.log("Verify response from backend:", response);
+    
+    return response;
+  } catch (err) {
+    console.error("verifyFace API error:", err);
+    throw err;
+  }
+}
+
