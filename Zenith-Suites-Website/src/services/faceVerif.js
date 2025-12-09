@@ -34,7 +34,7 @@ export async function verifyFace(bookingCode, file) {
     const response = await api.postForm("/FaceVerif/verify", formData);
     console.log("Verify response from backend:", response);
     
-    return response;
+    return response;   
   } catch (err) {
     console.error("verifyFace API error:", err);
     throw err;
