@@ -1,0 +1,16 @@
+fastapi==0.112.*
+uvicorn[standard]==0.30.*
+python-multipart==0.0.9
+numpy==1.26.*
+# opencv-python kurulumda sorun yaşarsan 'opencv-python-headless' deneyebilirsin
+opencv-python==4.10.*
+
+# Bir sonraki adımda aktif edeceğiz (şimdilik yoruma aldık, ilk koşumda hızlı olsun)
+insightface==0.7.*
+onnxruntime==1.17.*
+# mediapipe==0.10.*
+
+# Kod kalitesi (opsiyonel)
+black==24.4.2
+ruff==0.5.1
+pre-commit==3.7.1

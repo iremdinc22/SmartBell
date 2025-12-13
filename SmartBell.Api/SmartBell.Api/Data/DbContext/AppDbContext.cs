@@ -11,10 +11,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         public DbSet<Room> Rooms { get; set; } = null!;
         public DbSet<Reservation> Reservations { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<FaceRec> FaceRecs { get; set; } = null!;  
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            
 
             // ROOM CONFIG
             modelBuilder.Entity<Room>(entity =>
@@ -44,6 +46,14 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
                       .HasForeignKey(p => p.ReservationId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // FACE RECOGNATION CONFIG
+            modelBuilder.Entity<FaceRec>(entity =>
+            {
+                // BookingCode alanında hızlı arama sağlamak için benzersiz index oluşturur.
+                entity.HasIndex(f => f.BookingCode).IsUnique(); 
+            });
+            
 
             // -----------------------------
             // ROOM SEED VERİLERİ

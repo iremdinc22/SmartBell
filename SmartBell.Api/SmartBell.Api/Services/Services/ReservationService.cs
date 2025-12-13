@@ -5,6 +5,7 @@ using SmartBell.Api.Data.DbContext;
 using SmartBell.Api.Data.Repositories;
 using SmartBell.Api.Domain.Entities;
 using SmartBell.Api.Dtos.ReservationDtos;
+using SmartBell.Api.Dtos.FaceDtos;
 using SmartBell.Api.Services.Interfaces;
 using SmartBell.Domain.Enums;
 
@@ -19,7 +20,7 @@ public class ReservationService : IReservationService
     public ReservationService(AppDbContext db, IGenericRepository<Reservation> repo, IMapper mapper)
         => (_db, _repo, _mapper) = (db, repo, mapper);
 
-    public async Task<Guid> CreateAsync(CreateReservationDto dto)
+    public async Task<EnrollDto> CreateAsync(CreateReservationDto dto)
     {
         var people = dto.Adults + dto.ChildrenUnder12;
 
@@ -40,11 +41,32 @@ public class ReservationService : IReservationService
         var pricePerNight = selectedRoom?.BasePricePerNight ?? 100m;
         entity.Total = pricePerNight * (nights == 0 ? 1 : nights);
 
+        //  BookingCode üretimi
+        entity.BookingCode = await GenerateUniqueBookingCodeAsync();
+
         await _repo.AddAsync(entity);
         await _repo.SaveChangesAsync();
-        return entity.Id;
+        //frontendde gösterebilmek için dönüş tipi guid -> enrollDto yaptım, id frontendde kaldırılabilir. bu alanlar face rec için de gerekli
+        return new EnrollDto    
+        {
+            Id = entity.Id,
+            BookingCode = entity.BookingCode
+        };
     }
 
+
+    private async Task<string> GenerateUniqueBookingCodeAsync()
+    {
+        string code;
+        bool exists;
+        do
+        {
+            code = Convert.ToHexString(Guid.NewGuid().ToByteArray()[..4]).ToUpperInvariant();
+            exists = await _repo.Query().AnyAsync(r => r.BookingCode == code);
+        } while (exists);
+        return code;
+    }
+    
     public async Task<ReservationDto?> GetAsync(Guid id)
         => await _repo.Query()
             .Where(r => r.Id == id)

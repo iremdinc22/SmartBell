@@ -38,8 +38,8 @@ namespace SmartBell.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateReservationDto dto)
         {
-            await _service.CreateAsync(dto);
-            return Ok("Reservation created successfully.");
+            var enrollData = await _service.CreateAsync(dto);
+            return Ok(enrollData);
         }
 
         // PUT /api/reservations/status
