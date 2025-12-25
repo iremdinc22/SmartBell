@@ -6,10 +6,12 @@ using SmartBell.Api.Mapping;
 using SmartBell.Api.Services.Implementations;
 using SmartBell.Api.Services.Interfaces; // AutoMapper profili
 using SmartBell.Api.Services.Services;
+using SmartBell.Api.Services.Services.Robot;
 using SmartBell.Api.Integrations; // FaceVerificationClient'ın yeni konumu
 using SmartBell.Api.Swagger;
 using SmartBell.Api.Infrastructure.Email;
 using SmartBell.Api.Options;
+using Microsoft.AspNetCore.StaticFiles;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +41,9 @@ builder.Services.AddHttpClient<FaceVerificationClient>();
 builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHostedService<EmailWorker>();
+builder.Services.AddHostedService<MapPgmToPngWorker>();
+
+builder.Services.AddSingleton<IRobotPoseStore, RobotPoseStore>();
 
 
 // b) Yüz İş Mantığı Servisi (IFaceService) kaydı
@@ -80,6 +85,20 @@ if (app.Environment.IsDevelopment())
 
 // 9) Middleware sırası
 //app.UseHttpsRedirection();
+//app.UseStaticFiles(); 
+
+var provider = new FileExtensionContentTypeProvider();
+provider.Mappings[".pgm"]  = "image/x-portable-graymap";
+provider.Mappings[".yaml"] = "text/yaml";
+provider.Mappings[".yml"]  = "text/yaml";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = provider,
+    ServeUnknownFileTypes = true
+});
+
+
 app.UseCors("client");
 
 // 10) Routes
