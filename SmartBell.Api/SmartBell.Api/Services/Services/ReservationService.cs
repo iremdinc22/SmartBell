@@ -8,6 +8,8 @@ using SmartBell.Api.Dtos.ReservationDtos;
 using SmartBell.Api.Dtos.FaceDtos;
 using SmartBell.Api.Services.Interfaces;
 using SmartBell.Domain.Enums;
+using SmartBell.Api.Infrastructure.Email;
+
 
 namespace SmartBell.Api.Services.Services;
 
@@ -16,9 +18,10 @@ public class ReservationService : IReservationService
     private readonly AppDbContext _db;
     private readonly IGenericRepository<Reservation> _repo;
     private readonly IMapper _mapper;
+    private readonly IEmailQueue _emailQueue;
 
-    public ReservationService(AppDbContext db, IGenericRepository<Reservation> repo, IMapper mapper)
-        => (_db, _repo, _mapper) = (db, repo, mapper);
+    public ReservationService(AppDbContext db, IGenericRepository<Reservation> repo, IMapper mapper, IEmailQueue emailQueue)
+    => (_db, _repo, _mapper, _emailQueue) = (db, repo, mapper, emailQueue);
 
     public async Task<EnrollDto> CreateAsync(CreateReservationDto dto)
     {
@@ -46,8 +49,16 @@ public class ReservationService : IReservationService
 
         await _repo.AddAsync(entity);
         await _repo.SaveChangesAsync();
-        //frontendde gösterebilmek için dönüş tipi guid -> enrollDto yaptım, id frontendde kaldırılabilir. bu alanlar face rec için de gerekli
-        return new EnrollDto    
+
+        if (!string.IsNullOrWhiteSpace(entity.Email))
+        {
+            var subject = $"Zenith Suites | Reservation Confirmed (#{entity.BookingCode})";
+            var html = EmailTemplates.ReservationConfirmed(entity);
+
+            await _emailQueue.EnqueueAsync(new EmailJob(entity.Email, subject, html));
+        }
+
+        return new EnrollDto
         {
             Id = entity.Id,
             BookingCode = entity.BookingCode
@@ -66,7 +77,7 @@ public class ReservationService : IReservationService
         } while (exists);
         return code;
     }
-    
+
     public async Task<ReservationDto?> GetAsync(Guid id)
         => await _repo.Query()
             .Where(r => r.Id == id)
@@ -88,4 +99,6 @@ public class ReservationService : IReservationService
         await _repo.SaveChangesAsync();
         return true;
     }
+
+
 }

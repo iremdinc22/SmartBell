@@ -8,6 +8,9 @@ using SmartBell.Api.Services.Interfaces; // AutoMapper profili
 using SmartBell.Api.Services.Services;
 using SmartBell.Api.Integrations; // FaceVerificationClient'ın yeni konumu
 using SmartBell.Api.Swagger;
+using SmartBell.Api.Infrastructure.Email;
+using SmartBell.Api.Options;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +18,11 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+// ✅ Mail config DI
+builder.Services.Configure<MailSettings>(
+    builder.Configuration.GetSection("Mail")
+);
 
 // 2) AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -28,6 +36,10 @@ builder.Services.AddProjectServices();
 //// builder.Services.AddScoped<IReservationService, ReservationService>();
 // a) Python Microservice için HttpClient kaydı
 builder.Services.AddHttpClient<FaceVerificationClient>(); 
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHostedService<EmailWorker>();
+
 
 // b) Yüz İş Mantığı Servisi (IFaceService) kaydı
 builder.Services.AddScoped<IFaceService, FaceService>(); 
