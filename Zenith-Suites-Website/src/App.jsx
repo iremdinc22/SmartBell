@@ -16,7 +16,7 @@ import RobotsLocation from './components/admin/RobotsLocation'
 import GuestServices from './components/guestservices/GuestServices'
 import Checkin from './components/guestservices/Checkin'
 import Checkout from './components/guestservices/Checkout'
-import AIChatbot from './components/features/AIChatbot'
+import Recommendations from './components/features/Recommendations'
 
 import ConfirmationPage from './components/confirmation/ConfirmationPage';
 
@@ -34,16 +34,14 @@ function App() {
         <Route path="/guest-services" element={<GuestServices />} />
         <Route path="/guest-services/checkin" element={<Checkin />} />
         <Route path="/guest-services/checkout" element={<Checkout />} />
-        
-        {/* AI Chatbot Route */}
-        <Route path="/ai-concierge" element={<AIChatbot />} />
-        
+
         {/* Main Website Routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="about" element={<About />} />
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="features" element={<Features />} />
+          <Route path="ai-concierge" element={<Recommendations />} />
           <Route path="gallery" element={<Gallery />} />
           <Route path="rules" element={<Rules />} />
           <Route path="booking" element={<BookingPage />} />
