@@ -12,6 +12,8 @@ using SmartBell.Api.Swagger;
 using SmartBell.Api.Infrastructure.Email;
 using SmartBell.Api.Options;
 using Microsoft.AspNetCore.StaticFiles;
+using SmartBell.Api.Recommendation;
+using SmartBell.Api.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +33,12 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // 3) Repository & Service katmanları (senin extension)
 builder.Services.AddProjectServices();
+
+// ✅ Recommendation config + engine + service DI (EKLENDİ)
+builder.Services.Configure<RecommendationOptions>(
+    builder.Configuration.GetSection("Recommendation"));
+builder.Services.AddSingleton<RecommendationEngine>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 
 // 4) (Opsiyonel) Eğer AddProjectServices() içinde yoksa bu scoped kayıtları aç:
 ////builder.Services.AddScoped<IRobotService, RobotService>();
