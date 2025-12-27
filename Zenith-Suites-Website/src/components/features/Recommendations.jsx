@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchRecommendations } from "../../services/recommendations";
 
 // Small helper: "YYYY-MM-DD"
@@ -56,7 +57,6 @@ function SkeletonCard() {
 
 // Helper: turn number input into nullable number
 function toNullableNumber(v) {
-  // empty string => null
   if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
@@ -73,6 +73,8 @@ function compactPayload(obj) {
 }
 
 export default function RecommendationsPage() {
+  const navigate = useNavigate();
+
   const today = useMemo(() => new Date(), []);
   const defaultCheckIn = useMemo(() => toIsoDate(today), [today]);
   const defaultCheckOut = useMemo(() => {
@@ -81,9 +83,6 @@ export default function RecommendationsPage() {
     return toIsoDate(d);
   }, [today]);
 
-  // ✅ Option 1 defaults:
-  // - required: dates + adults/children
-  // - optional: budgets null (empty inputs), wanted none, interests false
   const [form, setForm] = useState({
     checkIn: defaultCheckIn,
     checkOut: defaultCheckOut,
@@ -125,7 +124,6 @@ export default function RecommendationsPage() {
     setErr(null);
 
     try {
-      // ✅ don’t send nulls (budgetMin/budgetMax etc.)
       const payload = compactPayload(form);
       const data = await fetchRecommendations(payload);
       setResults(Array.isArray(data) ? data : []);
@@ -139,7 +137,7 @@ export default function RecommendationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header (same vibe as AIChatbot) */}
+      {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 sm:px-10 py-4">
         <div className="flex items-center gap-4 text-black dark:text-white">
           <div className="size-6">
@@ -189,16 +187,20 @@ export default function RecommendationsPage() {
             </p>
           </div>
 
-          {/* Layout: form + results */}
+          {/* Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Form card */}
+            {/* Form */}
             <section className="lg:col-span-2">
               <div className="rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="p-6">
                   <p className="font-serif text-lg text-black dark:text-white">Your Preferences</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    People: <span className="font-semibold text-black dark:text-white">{form.adults + form.childrenUnder12}</span>{" "}
-                    · Nights: <span className="font-semibold text-black dark:text-white">{nights}</span>
+                    People:{" "}
+                    <span className="font-semibold text-black dark:text-white">
+                      {form.adults + form.childrenUnder12}
+                    </span>{" "}
+                    · Nights:{" "}
+                    <span className="font-semibold text-black dark:text-white">{nights}</span>
                   </p>
 
                   <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -242,13 +244,15 @@ export default function RecommendationsPage() {
                           type="number"
                           min={0}
                           value={form.childrenUnder12}
-                          onChange={(e) => setForm({ ...form, childrenUnder12: Number(e.target.value) })}
+                          onChange={(e) =>
+                            setForm({ ...form, childrenUnder12: Number(e.target.value) })
+                          }
                           className="mt-2 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg py-2.5 px-3 text-black dark:text-white focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition"
                         />
                       </div>
                     </div>
 
-                    {/* Budget (nullable) */}
+                    {/* Budget */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-sm text-gray-600 dark:text-gray-300">Budget Min</label>
@@ -307,7 +311,7 @@ export default function RecommendationsPage() {
                       </select>
                     </div>
 
-                    {/* Wanted flags (default None) */}
+                    {/* Wanted flags */}
                     <div>
                       <label className="text-sm text-gray-600 dark:text-gray-300">Wanted Amenities</label>
                       <select
@@ -333,7 +337,7 @@ export default function RecommendationsPage() {
                       Honeymoon
                     </label>
 
-                    {/* Interests (default false) */}
+                    {/* Interests */}
                     <div>
                       <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Interests</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -466,9 +470,27 @@ export default function RecommendationsPage() {
                                   Total: {x.pricePerNight * nights}
                                 </div>
 
+                                {/* ✅ GO TO PAYMENT */}
                                 <button
                                   type="button"
-                                  onClick={() => alert(`Selected roomId: ${x.room.id}`)}
+                                  onClick={() =>
+                                    navigate("/payment", {
+                                      state: {
+                                        bookingData: {
+                                          selectedRoomType: x.room.type,
+                                          roomId: x.room.id,
+                                          roomCode: x.room.code,
+                                          checkIn: form.checkIn,
+                                          checkOut: form.checkOut,
+                                          adults: form.adults,
+                                          childrenUnder12: form.childrenUnder12,
+                                          nights,
+                                          price: x.pricePerNight * nights,
+                                          currency: "EUR",
+                                        },
+                                      },
+                                    })
+                                  }
                                   className="mt-1 flex items-center justify-center rounded-lg h-10 px-4 bg-black dark:bg-white text-white dark:text-black text-sm font-bold hover:opacity-90"
                                 >
                                   Select room

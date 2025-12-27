@@ -41,7 +41,7 @@ function App() {
           <Route path="about" element={<About />} />
           <Route path="rooms" element={<RoomsPage />} />
           <Route path="features" element={<Features />} />
-          <Route path="ai-concierge" element={<Recommendations />} />
+          <Route path="recommendations" element={<Recommendations />} />
           <Route path="gallery" element={<Gallery />} />
           <Route path="rules" element={<Rules />} />
           <Route path="booking" element={<BookingPage />} />

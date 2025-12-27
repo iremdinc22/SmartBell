@@ -1,5 +1,5 @@
 /// src/components/payment/PaymentPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createReservation } from "@/services/reservations";
 import { enrollFace } from "@/services/faceVerif";
@@ -9,27 +9,51 @@ const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
 
 const PaymentPage = () => {
   const navigate = useNavigate();
-  const { state } = useLocation();
+  const location = useLocation();
+  const state = location?.state ?? null;
 
-  // BookingPage'den gelen veriler
+  // BookingPage veya Recommendations'tan gelen ortak payload
   const bookingFromState = state?.bookingData || null;
 
-  // Booking gelmediyse /booking'e yönlendir
+  // Only redirect when there is truly no bookingData at all
   useEffect(() => {
-    if (!bookingFromState) navigate("/booking", { replace: true });
+    if (!bookingFromState) {
+      navigate("/booking", { replace: true });
+    }
   }, [bookingFromState, navigate]);
 
-  // Özet
-  const summary = {
-    roomType: bookingFromState?.selectedRoomType || bookingFromState?.roomType || "Any",
-    checkIn: bookingFromState?.checkIn,
-    checkOut: bookingFromState?.checkOut,
-    adults: Number(bookingFromState?.adults ?? 2),
-    children: Number(bookingFromState?.children ?? 0),
-    nights: bookingFromState?.nights ?? 1,
-    price: bookingFromState?.price ?? 2250,
-    currency: bookingFromState?.currency ?? "EUR",
-  };
+  // Summary: both flows supported
+  const summary = useMemo(() => {
+    const roomType =
+      bookingFromState?.selectedRoomType ||
+      bookingFromState?.roomType ||
+      bookingFromState?.roomCode ||
+      "Any";
+
+    const nights = Number(bookingFromState?.nights ?? 1) || 1;
+
+    // price: if Recommendations passed total -> use it else fallback
+    const price = Number(bookingFromState?.price ?? 2250) || 2250;
+
+    return {
+      roomType,
+      roomId: bookingFromState?.roomId ?? null, // optional
+      roomCode: bookingFromState?.roomCode ?? null, // optional
+      checkIn: bookingFromState?.checkIn,
+      checkOut: bookingFromState?.checkOut,
+      adults: Number(bookingFromState?.adults ?? 2),
+
+      // ✅ TEK ALAN: childrenUnder12
+      // Eski sayfadan children gelirse kırılmasın diye fallback bıraktık
+      childrenUnder12: Number(
+        bookingFromState?.childrenUnder12 ?? bookingFromState?.children ?? 0
+      ),
+
+      nights,
+      price,
+      currency: bookingFromState?.currency ?? "EUR",
+    };
+  }, [bookingFromState]);
 
   // Form state
   const [contact, setContact] = useState({ fullName: "", email: "", phone: "" });
@@ -43,6 +67,7 @@ const PaymentPage = () => {
     postalCode: "",
     country: "Turkey",
   });
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -52,10 +77,11 @@ const PaymentPage = () => {
 
   const handleContactChange = (e) =>
     setContact((p) => ({ ...p, [e.target.name]: e.target.value }));
+
   const handleInputChange = (e) =>
     setPaymentData((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-    // Photo handlers
+  // Photo handlers
   const handlePhotoChange = (e) => {
     setPhotoError("");
     const file = e.target.files?.[0];
@@ -65,7 +91,6 @@ const PaymentPage = () => {
       return;
     }
 
-    // Validate type
     if (!file.type.startsWith("image/")) {
       setPhotoError("Please upload an image file.");
       setPhotoFile(null);
@@ -73,7 +98,6 @@ const PaymentPage = () => {
       return;
     }
 
-    // Validate size
     if (file.size > MAX_IMAGE_BYTES) {
       setPhotoError(`Image must be <= ${MAX_IMAGE_MB} MB.`);
       setPhotoFile(null);
@@ -83,7 +107,6 @@ const PaymentPage = () => {
 
     setPhotoFile(file);
 
-    // Preview
     const reader = new FileReader();
     reader.onload = (ev) => setPhotoPreview(String(ev.target?.result || ""));
     reader.readAsDataURL(file);
@@ -105,6 +128,7 @@ const PaymentPage = () => {
     if (!paymentData.cardHolder) return "Card holder required.";
     if (!paymentData.billingAddress || !paymentData.city || !paymentData.postalCode)
       return "Billing address is incomplete.";
+    if (!summary.checkIn || !summary.checkOut) return "Missing dates. Please go back and select dates.";
     return "";
   };
 
@@ -112,6 +136,7 @@ const PaymentPage = () => {
     e.preventDefault();
     setErrorMsg("");
     setPhotoError("");
+
     const v = validate();
     if (v) {
       setErrorMsg(v);
@@ -126,28 +151,39 @@ const PaymentPage = () => {
     setIsProcessing(true);
 
     try {
+      // normalize Any checks
+      const roomPref =
+        String(summary.roomType || "Any").toLowerCase() === "any"
+          ? "Any"
+          : summary.roomType;
+
       // Backend'in beklediği CreateReservationDto
       const dto = {
         checkIn: summary.checkIn,   // "YYYY-MM-DD"
         checkOut: summary.checkOut, // "YYYY-MM-DD"
         adults: summary.adults,
-        childrenUnder12: summary.children,
-        roomPreference: summary.roomType === "any" ? "Any" : summary.roomType,
+
+        // ✅ burada artık childrenUnder12 kullanıyoruz
+        childrenUnder12: summary.childrenUnder12,
+
+        roomPreference: roomPref,
         fullName: contact.fullName,
         email: contact.email,
         phone: contact.phone,
+
+        // OPTIONAL: backend destekliyorsa
+        // roomId: summary.roomId,
       };
 
-      console.log("createReservation DTO:", dto);   //** */
+      console.log("createReservation DTO:", dto);
 
       const enrollData = await createReservation(dto); // POST /api/reservations
-
-      console.log("createReservation raw:", enrollData); // { id: "...", bookingCode: "..." }
-
+      console.log("createReservation raw:", enrollData);
 
       // normalize id / bookingCode
       const reservationId =
         enrollData?.id ?? enrollData?.Id ?? enrollData?.reservationId ?? enrollData?.ReservationId ?? null;
+
       const bookingCode =
         enrollData?.bookingCode ??
         enrollData?.BookingCode ??
@@ -157,15 +193,19 @@ const PaymentPage = () => {
 
       console.log("Normalized ids:", { reservationId, bookingCode });
 
-      // Face enroll
-      
+      // Face enroll (optional)
       if (photoFile) {
         try {
           if (!reservationId || !bookingCode) {
             console.warn("Skipping enroll: missing reservationId or bookingCode.");
             setPhotoError("Face enroll skipped: missing booking data from server.");
           } else {
-            console.log("Calling enrollFace with:", { reservationId, bookingCode, fileName: photoFile.name });
+            console.log("Calling enrollFace with:", {
+              reservationId,
+              bookingCode,
+              fileName: photoFile.name,
+            });
+
             const enrollResp = await enrollFace(reservationId, bookingCode, photoFile);
             console.log("enroll response:", enrollResp);
           }
@@ -175,38 +215,35 @@ const PaymentPage = () => {
         }
       }
 
-
-      const finalBookingCode = enrollData.bookingCode;
-      const finalReservationRef = enrollData.id;
+      // navigate to confirmation
+      const finalBookingCode = bookingCode ?? enrollData?.bookingCode;
+      const finalReservationRef = reservationId ?? enrollData?.id;
 
       navigate("/confirmation", {
         state: {
           bookingId: finalBookingCode,
           bookingRef: finalReservationRef,
-          total: summary.price * 1.1, // örnek vergi eklendi
+          total: summary.price * 1.1,
           currency: summary.currency,
         },
         replace: true,
       });
-
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Payment error.");
+      setErrorMsg(err?.message || "Payment error.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  
-
-  // booking yoksa uyarı göster (tamamen boş dönmeyelim)
+  // show fallback while redirecting
   if (!bookingFromState) {
     return (
-      <div style={{ padding: 20, color: "white" }}>
-        No booking data.{" "}
-        <a href="/booking" style={{ textDecoration: "underline" }}>
-          Go to booking
-        </a>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <div className="text-center">
+          <p className="text-lg font-semibold">No booking data found.</p>
+          <p className="text-sm text-neutral-400 mt-2">Redirecting to booking...</p>
+        </div>
       </div>
     );
   }
@@ -271,11 +308,13 @@ const PaymentPage = () => {
                       required
                     />
                   </div>
-                  {/* --- Photo upload UI --- */}
+
+                  {/* Photo upload */}
                   <div className="md:col-span-2">
                     <label className="block text-sm text-neutral-300 mb-2" htmlFor="photo">
                       Upload a photo of your face — used for Face Verification
                     </label>
+
                     <div className="flex items-center gap-4">
                       <input
                         id="photo"
@@ -285,6 +324,7 @@ const PaymentPage = () => {
                         onChange={handlePhotoChange}
                         className="text-sm text-neutral-300"
                       />
+
                       {photoPreview ? (
                         <div className="flex items-center gap-2">
                           <img
@@ -304,6 +344,7 @@ const PaymentPage = () => {
                         <p className="text-xs text-neutral-500">Max {MAX_IMAGE_MB} MB. JPG/PNG recommended.</p>
                       )}
                     </div>
+
                     {photoError && <p className="text-red-400 text-sm mt-2">{photoError}</p>}
                   </div>
                 </div>
@@ -464,13 +505,16 @@ const PaymentPage = () => {
           <aside className="lg:col-span-1">
             <div className="lg:sticky lg:top-24 bg-neutral-900/60 rounded-2xl border border-neutral-800 p-6 md:p-8">
               <h2 className="font-serif text-2xl font-bold mb-6">Booking Summary</h2>
+
               <div className="space-y-3">
                 <Row label="Room Type" value={summary.roomType} />
                 <Row label="Check-in" value={summary.checkIn} />
                 <Row label="Check-out" value={summary.checkOut} />
                 <Row
                   label="Guests"
-                  value={`${summary.adults} Adults${summary.children ? `, ${summary.children} Children` : ""}`}
+                  value={`${summary.adults} Adults${
+                    summary.childrenUnder12 ? `, ${summary.childrenUnder12} Children (<12)` : ""
+                  }`}
                 />
                 <Row label="Nights" value={summary.nights} />
               </div>
