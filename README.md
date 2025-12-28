@@ -58,51 +58,6 @@ Rather than replacing human interaction, the system **augments hotel staff** by 
 
 ---
 
-## 🧩 System Architecture
-
-Zenith Suites is built using a **modular, layered architecture** to ensure scalability, clarity, and maintainability.
-
-┌──────────────────────────────┐
-│        Web Frontend          │
-│            (React)           │
-│                              │
-│  • Reservation               │
-│  • Check-in                  │
-│  • Guest Interaction         │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│        Backend APIs           │
-│         (.NET Core)           │
-│                              │
-│  • Business Logic             │
-│  • Rule-Based Recommendation │
-│  • Identity Verification     │
-│  • Robot Orchestration       │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│        PostgreSQL             │
-│           Database            │
-│                              │
-│  • Reservations              │
-│  • Users & Biometric Data    │
-│  • Room & Pricing Data       │
-└───────────────┬──────────────┘
-                │
-                ▼
-┌──────────────────────────────┐
-│     Robotic Integration      │
-│                              │
-│  • Robot Check-in            │
-│  • Key Delivery              │
-│  • Bellboy Services          │
-│  • Physical Task Execution   │
-└──────────────────────────────┘
-
-
 ## 🛠️ Technology Stack
 
 ### Backend
@@ -184,4 +139,21 @@ This project was developed as a **Computer & Electrical Engineering capstone pro
 
 🟢 Active Development  
 🎓 Academic Capstone Project
+
+
+## 🧩 System Architecture
+
+Zenith Suites is built using a **modular, layered architecture** to ensure scalability, clarity, and maintainability.
+
+```mermaid
+flowchart TD
+    Web[Web Frontend (React)]
+    Api[Backend APIs (.NET Core)]
+    Db[(PostgreSQL Database)]
+    Robot[Robotic Integration]
+
+    Web --> Api
+    Api --> Db
+    Db --> Robot
+
 
