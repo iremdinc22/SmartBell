@@ -1,4 +1,4 @@
-# ---- .NET (backend) ----
+# .NET backend
 **/bin/
 **/obj/
 *.user
@@ -7,7 +7,7 @@
 *.sln.docstates
 *.vs/
 
-# ---- React (frontend) ----
+# React frontend
 Zenith-Suites-Website/node_modules/
 Zenith-Suites-Website/build/
 Zenith-Suites-Website/dist/
@@ -15,31 +15,19 @@ Zenith-Suites-Website/.next/
 Zenith-Suites-Website/.env*
 Zenith-Suites-Website/.DS_Store
 
-# ---- Genel ----
-*.log
-.DS_Store
-Thumbs.db
-.env
-.vscode/
-.idea/
-
-
-# ---- Python Face Recognition Module ----
-# Byte-compiled / cache
+# Python modules
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual environments
 .venv/
 venv/
 env/
 
-# Environment variables & secrets
+# Environment variables
 .env
 *.env
 
-# Local data & runtime files
+# Local data & runtime
 data/*
 !data/.gitkeep
 appdb/*.db
@@ -48,21 +36,20 @@ uploads/
 logs/
 *.log
 
-
-# OS / IDE junk
+# OS & IDE junk
 .DS_Store
 Thumbs.db
 desktop.ini
 .vscode/
 .idea/
 
-# Packaging / build
+# Build & packaging
 build/
 dist/
 *.egg-info/
 .eggs/
 
-# Testing / tooling caches
+# Test & tooling caches
 .pytest_cache/
 .coverage
 coverage.xml
@@ -70,14 +57,14 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# Jupyter notebooks / misc
+# Notebooks
 *.ipynb
 .ipynb_checkpoints/
 
-# AI / Model-related
+# AI / model files
 models/
 
-# Test and sample images
+# Test images & samples
 scripts/test_images/
 appdb/*.jpg
 appdb/*.png
