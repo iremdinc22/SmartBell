@@ -62,21 +62,16 @@ Rather than replacing human interaction, the system **augments hotel staff** by 
 
 Zenith Suites is built using a **modular, layered architecture** to ensure scalability, clarity, and maintainability.
 
-┌─────────────────────────┐
-│ Web Frontend (React) │
-└─────────────┬───────────┘
-↓
-┌─────────────────────────┐
-│ Backend APIs (.NET Core)│
-└─────────────┬───────────┘
-↓
-┌─────────────────────────┐
-│ PostgreSQL Database │
-└─────────────┬───────────┘
-↓
-┌─────────────────────────┐
-│ Robotic Integration │
-└─────────────────────────┘
+```mermaid
+flowchart TD
+    A[Web Frontend<br/>(React)]
+    B[Backend APIs<br/>(.NET Core)]
+    C[(PostgreSQL Database)]
+    D[Robotic Integration]
+
+    A --> B
+    B --> C
+    C --> D
 
 
 ### Design Principles
@@ -158,10 +153,10 @@ This project was developed as a **Computer & Electrical Engineering capstone pro
 
 **Contributors**
 - İrem Dinç  
-- Atahan Doruk Yılmaz  
+- Rana Kara
 - Elif Deniz Gölboyu  
 - Emre Harmandal  
-- Rana Kara  
+- Atahan Doruk Yılmaz 
 
 ---
 
