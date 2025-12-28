@@ -62,26 +62,46 @@ Rather than replacing human interaction, the system **augments hotel staff** by 
 
 Zenith Suites is built using a **modular, layered architecture** to ensure scalability, clarity, and maintainability.
 
-```mermaid
-flowchart TD
-    A[Web Frontend (React)]
-    B[Backend APIs (.NET Core)]
-    C[(PostgreSQL Database)]
-    D[Robotic Integration]
+┌──────────────────────────────┐
+│        Web Frontend          │
+│            (React)           │
+│                              │
+│  • Reservation               │
+│  • Check-in                  │
+│  • Guest Interaction         │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│        Backend APIs           │
+│         (.NET Core)           │
+│                              │
+│  • Business Logic             │
+│  • Rule-Based Recommendation │
+│  • Identity Verification     │
+│  • Robot Orchestration       │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│        PostgreSQL             │
+│           Database            │
+│                              │
+│  • Reservations              │
+│  • Users & Biometric Data    │
+│  • Room & Pricing Data       │
+└───────────────┬──────────────┘
+                │
+                ▼
+┌──────────────────────────────┐
+│     Robotic Integration      │
+│                              │
+│  • Robot Check-in            │
+│  • Key Delivery              │
+│  • Bellboy Services          │
+│  • Physical Task Execution   │
+└──────────────────────────────┘
 
-    A --> B
-    B --> C
-    C --> D
-
-
-### Design Principles
-- Clear separation of concerns  
-- API-driven communication  
-- Stateless backend services  
-- Secure authentication & authorization  
-- Real-time messaging via SignalR  
-
----
 
 ## 🛠️ Technology Stack
 
