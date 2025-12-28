@@ -147,10 +147,10 @@ Zenith Suites is built using a **modular, layered architecture** to ensure scala
 
 ```mermaid
 flowchart TD
-    Web[Web Frontend (React)]
-    Api[Backend APIs (.NET Core)]
+    Web["Web Frontend - React"]
+    Api["Backend APIs - .NET Core"]
     Db[(PostgreSQL Database)]
-    Robot[Robotic Integration]
+    Robot["Robotic Integration"]
 
     Web --> Api
     Api --> Db
