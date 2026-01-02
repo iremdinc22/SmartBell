@@ -31,7 +31,8 @@ export async function verifyFace(bookingCode, file) {
   formData.append("File", file);
 
   try {
-    const response = await api.postForm("/FaceVerif/verify", formData);
+    //const response = await api.postForm("/FaceVerif/verify", formData);  -- ESKİ
+    const response = await api.postForm("/CheckIn", formData);
     console.log("Verify response from backend:", response);
     
     return response;   

@@ -113,19 +113,15 @@ const Checkin = () => {
     }
 
     try {
-      const result = await verifyFace(bookingCode, file); // await çok önemli
-      console.log("Verify result data:", result);
-
-      if (result.status === "Verified") {
-        setFaceRecognitionStatus("success");
-      } else {
-        setFaceRecognitionStatus("failed");
-      }
+      await verifyFace(bookingCode.trim().toUpperCase(), file);
+      setFaceRecognitionStatus("success");
     } catch (err) {
-      console.error("Verify API error:", err);
+      console.error("Check-in failed:", err);
       setFaceRecognitionStatus("failed");
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
