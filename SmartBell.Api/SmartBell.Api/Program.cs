@@ -56,6 +56,11 @@ builder.Services.AddSingleton<IRobotPoseStore, RobotPoseStore>();
 
 // b) Yüz İş Mantığı Servisi (IFaceService) kaydı
 builder.Services.AddScoped<IFaceService, FaceService>(); 
+// c) Check-In Servisi kaydı
+builder.Services.AddScoped<ICheckInService, CheckInService>();
+// d) Check-Out Servisi kaydı
+builder.Services.AddScoped<ICheckOutService, CheckOutService>();
+
 
 // 5) SignalR servisleri
 builder.Services.AddSignalR();

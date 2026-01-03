@@ -160,6 +160,54 @@ namespace SmartBell.Api.Migrations
                     b.ToTable("Reservations");
                 });
 
+            modelBuilder.Entity("SmartBell.Api.Domain.Entities.ReservationStatus", b =>
+                {
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BookingCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CheckInAllowedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CheckOutAllowedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CheckedInAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CheckedOutAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PinCreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PinHash")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("PinSalt")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("PinValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("ReservationId");
+
+                    b.HasIndex("ReservationId")
+                        .IsUnique();
+
+                    b.ToTable("ReservationStatus");
+                });
+
             modelBuilder.Entity("SmartBell.Api.Domain.Entities.Room", b =>
                 {
                     b.Property<Guid>("Id")
@@ -299,6 +347,17 @@ namespace SmartBell.Api.Migrations
                     b.HasOne("SmartBell.Api.Domain.Entities.Room", null)
                         .WithMany("Reservations")
                         .HasForeignKey("RoomId");
+                });
+
+            modelBuilder.Entity("SmartBell.Api.Domain.Entities.ReservationStatus", b =>
+                {
+                    b.HasOne("SmartBell.Api.Domain.Entities.Reservation", "Reservation")
+                        .WithOne()
+                        .HasForeignKey("SmartBell.Api.Domain.Entities.ReservationStatus", "ReservationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Reservation");
                 });
 
             modelBuilder.Entity("SmartBell.Api.Domain.Entities.Reservation", b =>
