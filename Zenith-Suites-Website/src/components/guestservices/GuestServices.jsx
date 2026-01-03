@@ -14,32 +14,7 @@ const GuestServices = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-gray-200 bg-white px-10 py-4">
-        <div className="flex items-center gap-3">
-          <svg className="text-black h-7 w-7" fill="none" viewBox="0 0 24 24">
-            <path d="M12 2L1 9V21H8V14H16V21H23V9L12 2ZM11 19H5V10.18L12 4.48L19 10.18V19H13V12H11V19Z" fill="currentColor" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="0.5"></path>
-          </svg>
-          <h1 className="font-serif text-3xl font-medium tracking-tight text-black">Zenith Suites</h1>
-        </div>
-        <nav className="hidden lg:flex items-center gap-8 text-black">
-          <Link className="text-sm font-medium hover:text-gray-600 transition-colors" to="/rooms">Rooms & Suites</Link>
-          <Link className="text-sm font-medium hover:text-gray-600 transition-colors" to="/features">Amenities</Link>
-          <Link className="text-sm font-medium hover:text-gray-600 transition-colors" to="/gallery">Gallery</Link>
-          <Link className="text-sm font-medium hover:text-gray-600 transition-colors" to="/contact">Contact</Link>
-        </nav>
-        <div className="flex items-center gap-4">
-          <Link to="/booking" className="flex h-10 max-w-40 items-center justify-center gap-2 rounded-full bg-black px-6 text-sm font-bold text-white transition-opacity hover:opacity-90">
-            Book Now
-          </Link>
-          <Link to="/account" className="h-10 w-10 rounded-full border-2 border-black bg-gray-200 flex items-center justify-center">
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-            </svg>
-          </Link>
-        </div>
-      </header>
-
+      
       {/* Main Content */}
       <main className="flex flex-1 justify-center py-16 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-2xl">

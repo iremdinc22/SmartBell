@@ -44,7 +44,7 @@ public class CheckInService : ICheckInService
         {
             // Kullanıcının anlayacağı yerel saate (UTC+3) geri çevirerek gösterelim
             var localTime = status.CheckInAllowedAt.AddHours(3); 
-            throw new InvalidOperationException($"Check-in not allowed yet. Check-in time: {localTime:HH:mm}");
+            throw new InvalidOperationException($"Check-in not allowed yet. Check-in time: {localTime:dd.MM.yyyy HH:mm}");
         }
 
         if (status.CheckedInAt is not null)
@@ -61,7 +61,7 @@ public class CheckInService : ICheckInService
             dto.File.FileName);
 
         if (!isVerified)
-            throw new UnauthorizedAccessException($"Identity verification failed. Score: {score} Status: {verifyStatus}");
+            throw new UnauthorizedAccessException($"Identity verification failed. Please get help from our desk.");
 
         // 5) PIN üret + hash/salt
         var pin = GeneratePin(4, 6);

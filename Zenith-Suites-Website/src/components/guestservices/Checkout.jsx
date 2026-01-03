@@ -84,7 +84,7 @@ const Checkout = () => {
     }
   };
 
-  return (
+return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <header className="flex w-full items-center justify-center border-b border-gray-200 dark:border-gray-700 px-10 py-5">
@@ -108,7 +108,7 @@ const Checkout = () => {
 
           <div className="space-y-8">
             {/* STEP 1: Booking Code */}
-            {step === 1 && (
+            {step >= 1 && (
               <div className="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
                 <h2 className="font-serif text-[22px] font-bold text-black dark:text-white">
                   1. Booking Verification
@@ -119,21 +119,24 @@ const Checkout = () => {
                     Your Booking Code:
                   </p>
                   <input
-                    className="h-14 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-[15px] text-base text-black dark:text-white placeholder:text-gray-400 focus:border-black dark:focus:border-white focus:outline-0 focus:ring-0"
+                    disabled={step > 1}
+                    className="h-14 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-[15px] text-base text-black dark:text-white placeholder:text-gray-400 focus:border-black dark:focus:border-white focus:outline-0 focus:ring-0 disabled:opacity-50"
                     placeholder="Enter your Booking Code"
                     value={bookingCode}
                     onChange={(e) => setBookingCode(e.target.value)}
                   />
                 </label>
 
-                <button
-                  onClick={handleGoStep2}
-                  className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black font-bold hover:opacity-90"
-                >
-                  Next
-                </button>
+                {step === 1 && (
+                  <button
+                    onClick={handleGoStep2}
+                    className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black font-bold hover:opacity-90"
+                  >
+                    Next
+                  </button>
+                )}
 
-                {statusMessage && (
+                {step === 1 && statusMessage && (
                   <p className="text-sm mt-2 text-red-600 dark:text-red-400">
                     {statusMessage}
                   </p>
@@ -142,8 +145,8 @@ const Checkout = () => {
             )}
 
             {/* STEP 2: PIN Verification */}
-            {step === 2 && (
-              <div className="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+            {step >= 2 && (
+              <div className="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800 animate-in fade-in slide-in-from-top-4 duration-500">
                 <h2 className="font-serif text-[22px] font-bold text-black dark:text-white">
                   2. Room PIN Verification
                 </h2>
@@ -153,20 +156,23 @@ const Checkout = () => {
                     Room PIN:
                   </p>
                   <input
-                    className="h-14 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-[15px] text-base text-black dark:text-white placeholder:text-gray-400 focus:border-black dark:focus:border-white focus:outline-0 focus:ring-0"
+                    disabled={step > 2}
+                    className="h-14 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-[15px] text-base text-black dark:text-white placeholder:text-gray-400 focus:border-black dark:focus:border-white focus:outline-0 focus:ring-0 disabled:opacity-50"
                     placeholder="Enter the PIN you received by email"
                     value={pin}
                     onChange={(e) => setPin(e.target.value)}
                   />
                 </label>
 
-                <button
-                  onClick={handleVerifyPin}
-                  disabled={loading}
-                  className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black font-bold hover:opacity-90 disabled:opacity-60"
-                >
-                  {loading ? "Verifying..." : "Verify PIN"}
-                </button>
+                {step === 2 && (
+                  <button
+                    onClick={handleVerifyPin}
+                    disabled={loading}
+                    className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-black text-white dark:bg-white dark:text-black font-bold hover:opacity-90 disabled:opacity-60"
+                  >
+                    {loading ? "Verifying..." : "Verify PIN"}
+                  </button>
+                )}
 
                 {!!statusMessage && (
                   <div
@@ -187,62 +193,23 @@ const Checkout = () => {
                   </div>
                 )}
 
-                <button
-                  onClick={() => setStep(1)}
-                  className="text-sm underline text-gray-600 dark:text-gray-300 mt-1"
-                >
-                  Back
-                </button>
-              </div>
-            )}
-
-            {/* STEP 3: Identity & Key Return (artık PIN doğrulandıktan sonra açılıyor) */}
-            {step === 3 && (
-              <div className="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-                <h2 className="font-serif text-[22px] font-bold text-black dark:text-white">
-                  3. Key Return
-                </h2>
-
-                <div className="flex items-center gap-3 rounded-lg border border-green-500/50 bg-green-500/10 p-4">
-                  <p className="text-green-800 dark:text-green-300">
-                    <strong>Status:</strong> PIN verified. You can return the key.
-                  </p>
-                </div>
-
-                <div className="flex items-start gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                  <div>
-                    <p className="font-medium text-black dark:text-white">
-                      Please place your room key in the tray below.
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Our robotic system will securely collect it.
-                    </p>
-
-                    <button
-                      onClick={() => setKeyReturned(true)}
-                      className="mt-3 bg-black text-white dark:bg-white dark:text-black px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90"
-                    >
-                      Key Placed
-                    </button>
-                  </div>
-                </div>
-
-                {keyReturned && (
-                  <div className="flex items-center gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                    <p className="text-black dark:text-white">
-                      Key received successfully. Your check-out is almost complete.
-                    </p>
-                  </div>
+                {step === 2 && !loading && (
+                  <button
+                    onClick={() => setStep(1)}
+                    className="text-sm underline text-gray-600 dark:text-gray-300 mt-1"
+                  >
+                    Back
+                  </button>
                 )}
               </div>
             )}
 
-            {/* STEP 4: Feedback */}
-            {keyReturned && !showFeedback && (
-              <div className="flex flex-col gap-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+            {/* STEP 3: Final Step & Feedback (Directly after PIN) */}
+            {step >= 3 && !showFeedback && (
+              <div className="flex flex-col gap-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex flex-col gap-2">
                   <h2 className="font-serif text-[22px] font-bold text-black dark:text-white">
-                    4. Final Step
+                    3. Final Step
                   </h2>
                   <p className="text-base text-gray-600 dark:text-gray-400">
                     Would you like to leave feedback about your stay?
@@ -268,7 +235,7 @@ const Checkout = () => {
                 </div>
 
                 {wantsFeedback === false && (
-                  <div className="rounded-lg bg-gray-50 dark:bg-gray-700 p-4 text-center">
+                  <div className="rounded-lg bg-gray-50 dark:bg-gray-700 p-4 text-center animate-in fade-in zoom-in-95 duration-300">
                     <p className="text-gray-600 dark:text-gray-300">
                       Thank you for staying with Zenith Suites. We hope to welcome you again!
                     </p>
@@ -278,11 +245,13 @@ const Checkout = () => {
             )}
 
             {showFeedback && (
-              <Feedback
-                onSubmit={(data) => {
-                  console.log("Feedback submitted:", data);
-                }}
-              />
+              <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                <Feedback
+                  onSubmit={(data) => {
+                    console.log("Feedback submitted:", data);
+                  }}
+                />
+              </div>
             )}
           </div>
         </div>

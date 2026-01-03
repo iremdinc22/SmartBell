@@ -30,11 +30,7 @@ function App() {
         <Route path="/admin/dashboard" element={<AdminPanel />} />
         <Route path="/admin/robots-location" element={<RobotsLocation />} />
         
-        {/* Guest Services Routes */}
-        <Route path="/guest-services" element={<GuestServices />} />
-        <Route path="/guest-services/checkin" element={<Checkin />} />
-        <Route path="/guest-services/checkout" element={<Checkout />} />
-
+        
         {/* Main Website Routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
@@ -49,6 +45,9 @@ function App() {
           <Route path="confirmation" element={<ConfirmationPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="contact" element={<ContactPage />} />
+          <Route path="/guest-services" element={<GuestServices />} />
+          <Route path="/guest-services/checkin" element={<Checkin />} />
+          <Route path="/guest-services/checkout" element={<Checkout />} />
         </Route>
       </Routes>
     </Router>

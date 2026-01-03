@@ -7,6 +7,7 @@ const Checkin = () => {
   const [file, setFile] = useState(null);
   const [faceRecognitionStatus, setFaceRecognitionStatus] = useState(null);
   const [needsAssistance, setNeedsAssistance] = useState(null);
+  const [verifyError, setVerifyError] = useState("");
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -108,17 +109,43 @@ const Checkin = () => {
 
   const handleVerify = async () => {
     if (!bookingCode || !file) {
-      alert("Please enter your booking code and capture a photo.");
+      setVerifyError("Please enter your booking code and capture a photo.");
       return;
     }
 
+    setVerifyError(""); 
+    setFaceRecognitionStatus("processing");
+
     try {
-      await verifyFace(bookingCode.trim().toUpperCase(), file);
-      setFaceRecognitionStatus("success");
-    } catch (err) {
-      console.error("Check-in failed:", err);
-      setFaceRecognitionStatus("failed");
-    }
+        const result = await verifyFace(bookingCode.trim().toUpperCase(), file);
+        setFaceRecognitionStatus("success");
+      } catch (err) {
+        setFaceRecognitionStatus("failed");
+
+        // 1. Backend'den gelen veriyi al
+        let rawData = err.response?.data;
+        let message = "";
+
+        // 2. Veri tipini kontrol et ve içindeki metni cımbızla çek
+        if (typeof rawData === "object" && rawData !== null) {
+          // Eğer { "error": "...", "message": "..." } gibi bir objeyse metni al
+          message = rawData.message || rawData.error || JSON.stringify(rawData);
+        } else if (typeof rawData === "string") {
+          message = rawData;
+        } else {
+          message = err.message || "An unexpected error occurred.";
+        }
+
+        // 3. Mesajın içindeki "error:" veya "Reservation not found..." kalıntılarını temizle
+        // Regex kullanarak "error:" kelimesini (büyük/küçük harf duyarsız) ve tırnakları siliyoruz
+        const cleanMessage = message
+          .toString()
+          .replace(/^error:\s*/i, "") // En baştaki "error:" yazısını siler
+          .replace(/[{}"]/g, "")      // Parantez ve tırnakları siler
+          .trim();
+
+        setVerifyError(cleanMessage);
+      }
   };
 
 
@@ -203,13 +230,13 @@ const Checkin = () => {
                       autoPlay
                       muted
                       playsInline
-                      className="w-full max-w-md h-48 bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600"
+                      className="w-full max-w-md aspect-video bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 object-cover shadow-sm"
                     />
 
                     {/* Yakalanan fotoğrafın çizileceği canvas */}
                     <canvas
                       ref={canvasRef}
-                      className="w-full max-w-md h-48 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-600"
+                      className={`w-full max-w-md aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-600 object-cover shadow-sm ${!file ? 'hidden' : 'block'}`}
                     />
 
                     <button
@@ -256,10 +283,27 @@ const Checkin = () => {
                   )}
 
                   {faceRecognitionStatus === "failed" && (
-                    <p className="text-red-700 dark:text-red-300 font-semibold mt-4">
-                      Verification Failed! Please try again or contact the front
-                      desk.
-                    </p>
+                    <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <p className="text-red-700 dark:text-red-400 font-semibold text-center">
+                        Check-in Failed
+                      </p>
+                      <p className="text-red-600 dark:text-red-300 text-sm text-center mt-1">
+                        {verifyError}
+                      </p>
+                      <button 
+                        onClick={() => {
+                          setFaceRecognitionStatus(null); // Durumu sıfırla
+                          setVerifyError("");            // Hata metnini temizle
+                          setFile(null);                 // Önceki fotoğraf dosyasını sil
+                          // İsteğe bağlı: Canvas'ın içeriğini de temizlemek için:
+                          const canvas = canvasRef.current;
+                          if(canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                        }} 
+                        className="mt-3 bg-red-600 text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-red-700 transition-colors block mx-auto"
+                      >
+                        Try Again
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
