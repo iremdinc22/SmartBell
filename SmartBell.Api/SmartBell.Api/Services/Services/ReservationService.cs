@@ -8,6 +8,7 @@ using SmartBell.Api.Dtos.ReservationDtos;
 using SmartBell.Api.Dtos.FaceDtos;
 using SmartBell.Api.Services.Interfaces;
 using SmartBell.Domain.Enums;
+using SmartBell.Api.Domain.Enums;
 using SmartBell.Api.Infrastructure.Email;
 
 
@@ -48,7 +49,32 @@ public class ReservationService : IReservationService
         entity.BookingCode = await GenerateUniqueBookingCodeAsync();
 
         await _repo.AddAsync(entity);
-        await _repo.SaveChangesAsync();
+        //await _repo.SaveChangesAsync();
+
+        var timezoneId = OperatingSystem.IsWindows() ? "Turkey Standard Time" : "Europe/Istanbul";
+        var turkeyZone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+
+        var checkInLocal = dto.CheckIn.ToDateTime(new TimeOnly(14, 0));
+        var checkInUtc = TimeZoneInfo.ConvertTimeToUtc(checkInLocal, turkeyZone);
+
+        var checkOutLocal = dto.CheckOut.ToDateTime(new TimeOnly(12, 0));
+        var checkOutUtc = TimeZoneInfo.ConvertTimeToUtc(checkOutLocal, turkeyZone);
+
+        var status = new ReservationStatus
+        {
+            ReservationId = entity.Id,
+            Status = ReservationStayStatus.Reserved,
+            BookingCode = entity.BookingCode,
+
+            CheckInAllowedAt = checkInUtc,
+            CheckOutAllowedAt = checkOutUtc
+
+
+        };
+
+        _db.Set<ReservationStatus>().Add(status);
+
+        await _db.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(entity.Email))
         {

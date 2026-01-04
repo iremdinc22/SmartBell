@@ -12,6 +12,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         public DbSet<Reservation> Reservations { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
         public DbSet<FaceRec> FaceRecs { get; set; } = null!;  
+        public DbSet<ReservationStatus> ReservationStatus { get; set; } = null!;
+
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -53,6 +55,26 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
                 // BookingCode alanında hızlı arama sağlamak için benzersiz index oluşturur.
                 entity.HasIndex(f => f.BookingCode).IsUnique(); 
             });
+
+            // RESERVATION STATUS CONFIG
+            modelBuilder.Entity<ReservationStatus>(entity =>
+            {
+                entity.HasKey(x => x.ReservationId); // Primary Key olarak ReservationId kullanılır
+                entity.HasIndex(x => x.ReservationId).IsUnique(); // 1 reservation = 1 stay
+
+                entity.Property(x => x.Status)
+                    .HasConversion<string>()
+                    .HasMaxLength(40);
+
+                entity.HasOne(x => x.Reservation)
+                    .WithOne() // Reservation entity'yi değiştirmiyoruz
+                    .HasForeignKey<ReservationStatus>(x => x.ReservationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.Property(x => x.PinHash).HasMaxLength(512);
+                entity.Property(x => x.PinSalt).HasMaxLength(256);
+            });
+
             
 
             // -----------------------------
