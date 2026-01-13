@@ -52,7 +52,7 @@ const AccountPage = () => {
     setError("");
 
     try {
-      // ✅ fetch wrapper -> direkt dto döner
+      //  fetch wrapper -> direkt dto döner
       const dto = await getAccountSummary({
         email: auth.email,
         bookingCode: auth.bookingCode,
