@@ -37,8 +37,9 @@ public class Reservation
     public string Currency { get; set; } = "EUR";
 
     // --- Rezervasyon durumu ---
-    [MaxLength(20)] 
+    [MaxLength(20)]
     public string Status { get; set; } = "Pending"; // Pending, Confirmed, Cancelled
+    public ReservationStatus? ReservationStatus { get; set; }
 
     [Required, MaxLength(12)] 
     public string BookingCode { get; set; } //= GenerateBookingCode();
@@ -56,3 +57,5 @@ public class Reservation
     // private static string GenerateBookingCode()
     //     => Convert.ToHexString(Guid.NewGuid().ToByteArray()[..4]).ToUpperInvariant();
 }
+
+

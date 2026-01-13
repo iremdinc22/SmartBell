@@ -1,163 +1,320 @@
-import { useState } from 'react';
+import { useMemo, useState } from "react";
+import { getAccountSummary, updatePersonalInfo } from "@/services/account";
 
 const AccountPage = () => {
+  const [auth, setAuth] = useState({ email: "", bookingCode: "" });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [summary, setSummary] = useState(null);
+
   const [personalInfo, setPersonalInfo] = useState({
-    firstName: 'John',
-    lastName: 'Appleseed',
-    email: 'john.appleseed@email.com',
-    phone: '+1 234 567 890'
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
   });
 
-  const handleInputChange = (e) => {
+  const canLoad = useMemo(() => {
+    return auth.email.trim().length > 0 && auth.bookingCode.trim().length > 0;
+  }, [auth.email, auth.bookingCode]);
+
+  const handleAuthChange = (e) => {
     const { name, value } = e.target;
-    setPersonalInfo(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setAuth((p) => ({ ...p, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Updated personal info:', personalInfo);
-    // Handle form submission
+  const handlePersonalChange = (e) => {
+    const { name, value } = e.target;
+    setPersonalInfo((p) => ({ ...p, [name]: value }));
   };
+
+  const parseApiError = (err, fallback) => {
+    // fetch wrapper: throw new Error("....") -> err.message
+    const msg = err?.message;
+    if (msg && msg.includes('"errors"')) {
+      try {
+        const obj = JSON.parse(msg);
+        const firstKey = Object.keys(obj.errors ?? {})[0];
+        return obj.errors?.[firstKey]?.[0] || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+    return msg || fallback;
+  };
+
+  const loadAccount = async () => {
+    if (!canLoad) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      // ✅ fetch wrapper -> direkt dto döner
+      const dto = await getAccountSummary({
+        email: auth.email,
+        bookingCode: auth.bookingCode,
+      });
+
+      setSummary(dto);
+
+      setPersonalInfo({
+        firstName: dto?.personalInfo?.firstName ?? "",
+        lastName: dto?.personalInfo?.lastName ?? "",
+        email: dto?.personalInfo?.email ?? "",
+        phone: dto?.personalInfo?.phone ?? "",
+      });
+    } catch (err) {
+      setError(parseApiError(err, "Failed to load account."));
+      setSummary(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!summary) return;
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const dto = {
+        firstName: personalInfo.firstName,
+        lastName: personalInfo.lastName,
+        phone: personalInfo.phone,
+      };
+
+      // ✅ fetch wrapper -> direkt updated info döner
+      const updated = await updatePersonalInfo(
+        { email: auth.email, bookingCode: auth.bookingCode },
+        dto
+      );
+
+      setPersonalInfo((p) => ({
+        ...p,
+        firstName: updated?.firstName ?? p.firstName,
+        lastName: updated?.lastName ?? p.lastName,
+        phone: updated?.phone ?? p.phone,
+        email: updated?.email ?? p.email,
+      }));
+    } catch (err) {
+      setError(parseApiError(err, "Failed to update info."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const upcoming = summary?.upcomingBookings ?? [];
+  const past = summary?.pastBookings ?? [];
 
   return (
     <div className="px-4 md:px-10 lg:px-20 xl:px-40 py-12 flex-1 bg-gray-50/50">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-12">
+        <div className="mb-10">
           <h2 className="font-serif text-5xl font-semibold text-black">My Account</h2>
+          <p className="text-gray-600 mt-2">
+            Enter your email and booking code to view your bookings.
+          </p>
         </div>
-        
+
+        {/* AUTH BAR */}
+        <div className="bg-white p-6 rounded-lg shadow-sm mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                className="w-full h-12 px-4 rounded-md border border-gray-300 bg-white text-black shadow-sm
+                           focus:border-black focus:ring focus:ring-black/20"
+                name="email"
+                type="email"
+                value={auth.email}
+                onChange={handleAuthChange}
+                placeholder="your@email.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Booking Code</label>
+              <input
+                className="w-full h-12 px-4 rounded-md border border-gray-300 bg-white text-black shadow-sm
+                           focus:border-black focus:ring focus:ring-black/20"
+                name="bookingCode"
+                type="text"
+                value={auth.bookingCode}
+                onChange={handleAuthChange}
+                placeholder="ABC12345"
+              />
+            </div>
+
+            <button
+              onClick={loadAccount}
+              disabled={!canLoad || loading}
+              className="bg-black text-white hover:bg-opacity-90 transition-colors font-bold py-3 px-4 rounded-md disabled:opacity-60"
+            >
+              {loading ? "Loading..." : "Load Account"}
+            </button>
+          </div>
+
+          {error && (
+            <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+              {error}
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-12">
-            {/* Upcoming Bookings */}
+            {/* Upcoming */}
             <section>
               <h3 className="font-serif text-3xl font-medium text-black border-b border-gray-200 pb-4 mb-6">
                 Upcoming Bookings
               </h3>
-              <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                <div className="mx-auto h-48 w-64 mb-6 opacity-70 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+
+              {upcoming.length === 0 ? (
+                <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+                  <h4 className="text-xl font-semibold text-black mb-2">
+                    {summary ? "No upcoming bookings" : "Load your account to see bookings"}
+                  </h4>
+                  <p className="text-gray-600">
+                    {summary ? "You don't have any upcoming bookings." : "Enter email + booking code above."}
+                  </p>
                 </div>
-                <h4 className="text-xl font-semibold text-black mb-2">No upcoming bookings</h4>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  You don't have any upcoming bookings. Explore our rooms and suites to plan your next luxurious stay.
-                </p>
-                <button className="bg-gray-100 text-black hover:bg-gray-200 transition-colors font-medium py-2 px-6 rounded-md">
-                  Explore Rooms &amp; Suites
-                </button>
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  {upcoming.map((b) => (
+                    <div key={`${b.bookingCode}-${b.checkIn}`} className="bg-white p-6 rounded-lg shadow-sm">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-sm text-gray-500">{b.bookingCode}</div>
+                          <div className="text-xl font-semibold text-black">{b.roomTitle}</div>
+                          <div className="text-gray-600">{b.subtitle}</div>
+                          <div className="text-gray-600 mt-1">
+                            {String(b.checkIn)} → {String(b.checkOut)} •{" "}
+                            <span className="font-medium">{b.stayStatus}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <button
+                            disabled={!b.canCheckIn}
+                            className="px-4 py-2 rounded-md font-medium bg-black text-white disabled:opacity-40"
+                          >
+                            Check-in
+                          </button>
+                          <button
+                            disabled={!b.canCheckOut}
+                            className="px-4 py-2 rounded-md font-medium bg-gray-100 text-black disabled:opacity-40"
+                          >
+                            Check-out
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
-            {/* Past Bookings */}
+            {/* Past */}
             <section>
               <h3 className="font-serif text-3xl font-medium text-black border-b border-gray-200 pb-4 mb-6">
                 Past Bookings
               </h3>
-              <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                <div className="mx-auto h-48 w-64 mb-6 opacity-70 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h4 className="text-xl font-semibold text-black mb-2">No past bookings</h4>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Once you've stayed with us, your booking history will appear here, ready for you to revisit your favorite moments.
-                </p>
-              </div>
-            </section>
 
-            {/* Payment Methods */}
-            <section>
-              <h3 className="font-serif text-3xl font-medium text-black border-b border-gray-200 pb-4 mb-6">
-                Payment Methods
-              </h3>
-              <div className="bg-white p-8 rounded-lg shadow-sm text-center">
-                <svg className="mx-auto h-16 w-16 text-gray-400 mb-6" fill="none" stroke="currentColor" strokeWidth="1" viewBox="0 0 24 24">
-                  <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" strokeLinecap="round" strokeLinejoin="round"></path>
-                </svg>
-                <h4 className="text-xl font-semibold text-black mb-2">No payment methods added</h4>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Add a payment method to make future bookings faster and more convenient.
-                </p>
-                <button className="bg-gray-100 text-black hover:bg-gray-200 transition-colors font-medium py-2 px-6 rounded-md">
-                  Add Payment Method
-                </button>
-              </div>
+              {past.length === 0 ? (
+                <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+                  <h4 className="text-xl font-semibold text-black mb-2">{summary ? "No past bookings" : "—"}</h4>
+                  <p className="text-gray-600">{summary ? "Your booking history will appear here." : ""}</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {past.map((b) => (
+                    <div key={`${b.bookingCode}-${b.checkIn}`} className="bg-white p-6 rounded-lg shadow-sm">
+                      <div className="text-sm text-gray-500">{b.bookingCode}</div>
+                      <div className="text-xl font-semibold text-black">{b.roomTitle}</div>
+                      <div className="text-gray-600">{b.subtitle}</div>
+                      <div className="text-gray-600 mt-1">
+                        {String(b.checkIn)} → {String(b.checkOut)} •{" "}
+                        <span className="font-medium">{b.stayStatus}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </div>
 
-          {/* Personal Information Sidebar */}
+          {/* Sidebar */}
           <aside className="lg:col-span-1">
             <div className="bg-white p-8 rounded-lg shadow-sm sticky top-12">
               <h3 className="font-serif text-3xl font-medium text-black border-b border-gray-200 pb-4 mb-6">
                 Personal Information
               </h3>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="firstName">
-                    First Name
-                  </label>
-                  <input
-                    className="w-full h-12 px-4 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring focus:ring-black focus:ring-opacity-50 transition"
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    value={personalInfo.firstName}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="lastName">
-                    Last Name
-                  </label>
-                  <input
-                    className="w-full h-12 px-4 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring focus:ring-black focus:ring-opacity-50 transition"
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    value={personalInfo.lastName}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="email">
-                    Email Address
-                  </label>
-                  <input
-                    className="w-full h-12 px-4 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring focus:ring-black focus:ring-opacity-50 transition"
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={personalInfo.email}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="phone">
-                    Phone Number
-                  </label>
-                  <input
-                    className="w-full h-12 px-4 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring focus:ring-black focus:ring-opacity-50 transition"
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={personalInfo.phone}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="pt-4">
+
+              {!summary ? (
+                <p className="text-gray-600">Load your account to edit your information.</p>
+              ) : (
+                <form onSubmit={handleUpdate} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-md border border-gray-300 bg-white text-black shadow-sm
+                                 focus:border-black focus:ring focus:ring-black/20"
+                      name="firstName"
+                      type="text"
+                      value={personalInfo.firstName}
+                      onChange={handlePersonalChange}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-md border border-gray-300 bg-white text-black shadow-sm
+                                 focus:border-black focus:ring focus:ring-black/20"
+                      name="lastName"
+                      type="text"
+                      value={personalInfo.lastName}
+                      onChange={handlePersonalChange}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-md border border-gray-200 bg-gray-50 text-black"
+                      type="email"
+                      value={personalInfo.email}
+                      readOnly
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Email can’t be edited here.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                    <input
+                      className="w-full h-12 px-4 rounded-md border border-gray-300 bg-white text-black shadow-sm
+                                 focus:border-black focus:ring focus:ring-black/20"
+                      name="phone"
+                      type="tel"
+                      value={personalInfo.phone}
+                      onChange={handlePersonalChange}
+                    />
+                  </div>
+
                   <button
-                    className="bg-black text-white hover:bg-opacity-90 transition-colors w-full font-bold py-3 px-4 rounded-md"
+                    disabled={loading}
+                    className="bg-black text-white hover:bg-opacity-90 transition-colors w-full font-bold py-3 px-4 rounded-md disabled:opacity-60"
                     type="submit"
                   >
-                    Update Information
+                    {loading ? "Saving..." : "Update Information"}
                   </button>
-                </div>
-              </form>
+                </form>
+              )}
             </div>
           </aside>
         </div>
