@@ -3,7 +3,7 @@ import { api } from "@/lib/api";
 export function getAccountSummary(params) {
   const email = (params?.email ?? "").trim().toLowerCase();
   const bookingCode = (params?.bookingCode ?? "").trim().toUpperCase();
-  return api.get("/account/summary", { email, bookingCode }); // ✅ 2.param object
+  return api.get("/account/summary", { email, bookingCode }); // 2.param object
 }
 
 export function updatePersonalInfo(params, dto) {
