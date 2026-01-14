@@ -1,205 +1,101 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchMapMeta } from "@/services/map";
 
+// Dünyadan Piksele (Çizim için)
 function worldToPixel(x, y, meta) {
   const gx = (x - meta.originX) / meta.resolution;
   const gy = (y - meta.originY) / meta.resolution;
+  return { px: gx, py: gy };
+}
 
-  const px = gx;
-  const py = gy;
-  return { px, py };
+// ✅ Piskelden Dünyaya (Tıklama Koordinatı için)
+function pixelToWorld(mx, my, meta) {
+  const realX = mx * meta.resolution + meta.originX;
+  const realY = my * meta.resolution + meta.originY;
+  return { realX, realY };
 }
 
 export default function MapCanvas({
-  robots = [], // [{ id, name, color, pose:{x,y,yaw} }]
+  robots = [],
   selectedRobotId = null,
   onRobotClick = () => {},
+  onMapClick = null, // ✅ Dışarıdan gelen tıklama prop'u
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
-
   const [meta, setMeta] = useState(null);
   const [img, setImg] = useState(null);
-
-  // view: scale + offset (MERKEZLEME için)
   const [view, setView] = useState({ scale: 1, offsetX: 0, offsetY: 0 });
-
-  // container size (responsive)
   const [size, setSize] = useState({ w: 1100, h: 700 });
 
-  // ===============================
-  // 0) WRAP SIZE OBSERVER (responsive)
-  // ===============================
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver((entries) => {
-      const cr = entries?.[0]?.contentRect;
-      if (!cr) return;
-      // küçük margin/padding payı istersen burada kırpabilirsin
-      setSize({ w: Math.max(300, cr.width), h: Math.max(300, cr.height) });
-    });
-
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // ===============================
-  // 1) META + IMAGE LOAD
-  // ===============================
+  // 1) Meta ve Resim Yükleme (Kodun aynen kalıyor...)
   useEffect(() => {
     (async () => {
       try {
         const res = await fetchMapMeta();
         const m = res?.data ?? res;
-
-        if (!m || !m.pngUrl) {
-          console.error("🔴 fetchMapMeta invalid payload:", res);
-          return;
-        }
-
-        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:5131/api").replace(
-          /\/api\/?$/,
-          ""
-        );
-
+        if (!m || !m.pngUrl) return;
+        const apiBase = (import.meta.env.VITE_API_URL || "http://localhost:5131/api").replace(/\/api\/?$/, "");
         const pngUrl = m.pngUrl.startsWith("http") ? m.pngUrl : `${apiBase}${m.pngUrl}`;
-
-        const metaFixed = {
-          width: m.width,
-          height: m.height,
-          resolution: m.resolution,
-          originX: m.originX,
-          originY: m.originY,
-          originYaw: m.originYaw,
-          negate: m.negate,
-          flipY: m.flipY,
-          pngUrl,
-        };
-
+        const metaFixed = { ...m, pngUrl };
         setMeta(metaFixed);
-
         const image = new Image();
         image.src = pngUrl + "?v=" + Date.now();
         image.onload = () => setImg(image);
-        image.onerror = () => console.error("🔴 map.png LOAD FAILED:", image.src);
-      } catch (err) {
-        console.error("🔴 fetchMapMeta FAILED:", err);
-      }
+      } catch (err) { console.error(err); }
     })();
   }, []);
 
-  // ===============================
-  // 2) AUTO FIT + CENTER (meta veya container değişince)
-  // ===============================
-  const fitAndCenter = useMemo(() => {
-    return (w, h, metaObj) => {
-      const pad = 24; // map çevresinde biraz nefes alanı
-      const availW = Math.max(1, w - pad * 2);
-      const availH = Math.max(1, h - pad * 2);
-
-      const s = Math.min(availW / metaObj.width, availH / metaObj.height);
-
-      // merkezlemek için offset:
-      const drawnW = metaObj.width * s;
-      const drawnH = metaObj.height * s;
-
-      const offsetX = (w - drawnW) / 2;
-      const offsetY = (h - drawnH) / 2;
-
-      return { scale: s, offsetX, offsetY };
-    };
+  // 2) Otomatik Hizalama (Kodun aynen kalıyor...)
+  const fitAndCenter = useMemo(() => (w, h, m) => {
+    const pad = 24;
+    const s = Math.min((w - pad * 2) / m.width, (h - pad * 2) / m.height);
+    return { scale: s, offsetX: (w - m.width * s) / 2, offsetY: (h - m.height * s) / 2 };
   }, []);
 
   useEffect(() => {
-    if (!meta) return;
-    const next = fitAndCenter(size.w, size.h, meta);
-    setView(next);
+    if (meta) setView(fitAndCenter(size.w, size.h, meta));
   }, [meta, size.w, size.h, fitAndCenter]);
 
-  // ===============================
-  // 3) CANVAS DRAW (HARİTA OYNAMAZ)
-  // ===============================
+  // Container Boyutu (ResizeObserver kısmın...)
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const cr = entries?.[0]?.contentRect;
+      if (cr) setSize({ w: Math.max(300, cr.width), h: Math.max(300, cr.height) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // 3) Çizim Döngüsü (Kodun aynen kalıyor...)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !meta || !img) return;
-
     const dpr = window.devicePixelRatio || 1;
-
-    const cssW = Math.floor(size.w);
-    const cssH = Math.floor(size.h);
-
-    canvas.style.width = cssW + "px";
-    canvas.style.height = cssH + "px";
-    canvas.width = Math.floor(cssW * dpr);
-    canvas.height = Math.floor(cssH * dpr);
-
+    canvas.width = size.w * dpr; canvas.height = size.h * dpr;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // DPR
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-
-    // arka plan (dark ui içinde daha hoş)
-    ctx.clearRect(0, 0, cssW, cssH);
-    ctx.fillStyle = "#0b0f14";
-    ctx.fillRect(0, 0, cssW, cssH);
-
-    // view transform
+    ctx.clearRect(0, 0, size.w, size.h);
     ctx.save();
     ctx.translate(view.offsetX, view.offsetY);
     ctx.scale(view.scale, view.scale);
-
-    // MAP
     ctx.drawImage(img, 0, 0);
-
-    // Hafif overlay (opsiyonel, map’i “UI’ye gömer”)
-    ctx.fillStyle = "rgba(30, 30, 30, 0.12)";
-    ctx.fillRect(0, 0, meta.width, meta.height);
-
-    // ROBOTS
-    for (const r of robots) {
-      if (!r.pose) continue;
+    
+    robots.forEach(r => {
+      if (!r.pose) return;
       const { px, py } = worldToPixel(r.pose.x, r.pose.y, meta);
-
-      // Halo
       ctx.beginPath();
-      ctx.arc(px, py, r.id === selectedRobotId ? 16 : 14, 0, Math.PI * 2);
-      ctx.fillStyle =
-        r.id === selectedRobotId ? "rgba(59,130,246,0.30)" : "rgba(59,130,246,0.18)";
+      ctx.arc(px, py, r.id === selectedRobotId ? 10 : 7, 0, Math.PI * 2);
+      ctx.fillStyle = r.color || "#3b82f6";
       ctx.fill();
-
-      // Core
-      ctx.beginPath();
-      ctx.arc(px, py, r.id === selectedRobotId ? 8 : 6, 0, Math.PI * 2);
-      ctx.fillStyle = r.color || "#A8F5B4";
-      ctx.fill();
-
-      // Outline
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(0,0,0,0.55)";
-      ctx.stroke();
-
-      // Heading
-      const len = 18;
-      const dx = Math.cos(r.pose.yaw || 0) * len;
-      const dy = Math.sin(r.pose.yaw || 0) * len;
-
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      ctx.lineTo(px + dx, py + dy);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255,255,255,0.75)";
-      ctx.stroke();
-    }
-
+    });
     ctx.restore();
-  }, [meta, img, robots, selectedRobotId, view, size.w, size.h]);
+  }, [meta, img, robots, selectedRobotId, view, size]);
 
   // ===============================
-  // 4) CLICK SELECT (HARİTA SABİT KALIR)
+  // 4) GÜNCELLENMİŞ TIKLAMA MANTIĞI
   // ===============================
   function onClick(e) {
     if (!meta) return;
@@ -208,54 +104,39 @@ export default function MapCanvas({
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
 
-    // ekrandan map-space’e
+    // Ekran piksellerini Harita piksellerine çevir
     const mx = (cx - view.offsetX) / view.scale;
     const my = (cy - view.offsetY) / view.scale;
 
+    // 1. Önce robot seçilmeye çalışılıyor mu bak:
     let best = null;
     let bestDist = Infinity;
-
     for (const r of robots) {
       if (!r.pose) continue;
       const { px, py } = worldToPixel(r.pose.x, r.pose.y, meta);
-      const dx = px - mx;
-      const dy = py - my;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < bestDist) {
-        bestDist = d;
-        best = r;
-      }
+      const d = Math.sqrt((px - mx)**2 + (py - my)**2);
+      if (d < bestDist) { bestDist = d; best = r; }
     }
 
-    if (best && bestDist <= 18) onRobotClick(best);
+    if (best && bestDist <= 20) {
+      // Robot tıklandı
+      onRobotClick(best);
+    } else if (onMapClick) {
+      // ✅ Boş harita tıklandı -> Metre koordinatlarını hesapla ve gönder
+      const { realX, realY } = pixelToWorld(mx, my, meta);
+      console.log(`📍 Harita Hedefi (Metre): X=${realX.toFixed(2)}, Y=${realY.toFixed(2)}`);
+      onMapClick(realX, realY);
+    }
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
-      {/* İstersen bu butonları da kaldırabiliriz; harita oynamıyor zaten */}
-      <div className="flex gap-2 mb-3">
-        <button
-          className="px-3 py-1 rounded bg-white/10 border border-white/10"
-          onClick={() => {
-            if (!meta) return;
-            const next = fitAndCenter(size.w, size.h, meta);
-            setView(next);
-          }}
-        >
-          Fit
-        </button>
-      </div>
-
-      <div
-        ref={wrapRef}
-        className="flex-1 rounded-lg border border-white/10 overflow-hidden"
-      >
+    <div ref={wrapRef} className="w-full h-full bg-[#0b0f14] overflow-hidden">
         <canvas
           ref={canvasRef}
           onClick={onClick}
-          style={{ cursor: "default" }}
+          className="cursor-crosshair active:cursor-grabbing"
         />
-      </div>
     </div>
   );
 }
+

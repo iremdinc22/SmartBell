@@ -1,144 +1,218 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import MapCanvas from "@/components/Map/MapCanvas";
+import {
+  connectRobotHub,
+  onRobotOdom,
+  offRobotOdom,
+  sendMoveRobotRequest,
+} from "@/services/robotHub";
 
 const RobotsLocation = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDevice, setSelectedDevice] = useState(null);
+  // Main state for our simulation robot
+  const [robot, setRobot] = useState({
+    id: "ZS-VB-001",
+    name: "ValetBot-01",
+    status: "Online",
+    color: "#A8F5B4",
+    battery: 92,
+    pose: { x: 0.0, y: 0.0, yaw: 0.0 },
+  });
 
-  const [devices] = useState([
-    {
-      id: "ZS-VB-001",
-      name: "ValetBot-01",
-      status: "Online",
-      color: "#A8F5B4",
-      battery: 92,
-      // ✅ şimdilik test için pose (gerçekte backend’den gelecek)
-      pose: { x: -2.5, y: 1.2, yaw: 0.0 },
-    },
-    {
-      id: "ZS-RS-004",
-      name: "RoomServiceBot-04",
-      status: "In-Use",
-      color: "#A1C4FD",
-      battery: 78,
-      pose: { x: 2.0, y: 1.0, yaw: 1.2 },
-    },
-    {
-      id: "ZS-CU-007",
-      name: "CleaningUnit-07",
-      status: "Online",
-      color: "#A8F5B4",
-      battery: 85,
-      pose: { x: 1.2, y: -2.0, yaw: 2.4 },
-    },
-    {
-      id: "ZS-LB-002",
-      name: "LuggageBot-02",
-      status: "Offline",
-      color: "#F4B3B1",
-      battery: 0,
-      pose: { x: -1.0, y: -3.0, yaw: 0.3 },
-    },
-    {
-      id: "ZS-CB-001",
-      name: "ConciergeBot-01",
-      status: "In-Use",
-      color: "#A1C4FD",
-      battery: 91,
-      pose: { x: 3.0, y: 0.0, yaw: -0.8 },
-    },
-  ]);
+  // Central dispatch function
+  const sendRobotToGoal = async (x, y) => {
+    try {
+      const goalPayload = JSON.stringify({ robotId: robot.id, x, y });
+      await sendMoveRobotRequest(goalPayload);
+      console.log(`🎯 Dispatching Robot to: X=${x.toFixed(2)}, Y=${y.toFixed(2)}`);
+    } catch (err) {
+      console.error("❌ Command Dispatch Failed:", err);
+    }
+  };
 
-  const filteredDevices = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return devices;
-    return devices.filter((d) => `${d.name} ${d.id}`.toLowerCase().includes(q));
-  }, [devices, searchQuery]);
+  useEffect(() => {
+    let isMounted = true;
+
+    const handler = (payload) => {
+      if (!isMounted) return;
+      try {
+        const data = typeof payload === "string" ? JSON.parse(payload) : payload;
+        if (data && data.robotId === "ZS-VB-001") {
+          setRobot((prev) => ({
+            ...prev,
+            pose: {
+              ...prev.pose,
+              x: parseFloat(data.x),
+              y: parseFloat(data.y),
+            },
+          }));
+        }
+      } catch (err) {
+        console.error("❌ Data Processing Error:", err);
+      }
+    };
+
+    const startConnection = async () => {
+      try {
+        await connectRobotHub();
+        onRobotOdom(handler);
+      } catch (e) {
+        console.error("❌ Link Establishment Failed:", e);
+      }
+    };
+
+    startConnection();
+
+    return () => {
+      isMounted = false;
+      offRobotOdom(handler);
+    };
+  }, []);
 
   return (
-    <div className="flex h-screen w-full flex-col bg-gray-900 text-white">
-      {/* Header */}
-      <header className="flex items-center justify-between border-b border-white/10 px-6 py-4 shrink-0">
-        <div className="flex items-center gap-4">
-          <Link to="/admin/dashboard" className="text-white hover:text-gray-300">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="flex h-screen w-full flex-col bg-[#0f1115] text-white font-sans">
+      {/* --- HEADER SECTION --- */}
+      <header className="flex items-center justify-between border-b border-white/5 px-8 py-5 bg-[#161920] shrink-0 shadow-lg">
+        <div className="flex items-center gap-5">
+          <Link to="/admin/dashboard" className="p-2 hover:bg-white/5 rounded-full transition-colors">
+            <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
-          <h1 className="text-white text-3xl font-serif tracking-wider">Zenith Suites</h1>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-white uppercase italic">Zenith Control Center</h1>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+              <span className="text-[10px] uppercase tracking-widest text-green-500 font-bold">Fleet Management Active</span>
+            </div>
+          </div>
         </div>
-
-        <h2 className="text-lg font-medium text-white/80">Device Map</h2>
-
-        <div className="flex flex-1 justify-end">
-          <Link
-            to="/admin/login"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-transparent text-white hover:bg-white/10"
-          >
-            <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </Link>
+        
+        <div className="bg-white/5 px-4 py-2 rounded-lg border border-white/10 flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-[10px] text-white/40 uppercase tracking-tighter text-nowrap">System Health</p>
+            <p className="text-sm font-medium text-green-400 font-mono tracking-widest">OPERATIONAL</p>
+          </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="flex w-[320px] shrink-0 flex-col border-r border-white/10 bg-gray-900">
-          <div className="border-b border-white/10 p-4">
-            <div className="flex w-full items-stretch rounded-lg h-11 bg-white/5">
-              <div className="text-white/60 flex items-center justify-center pl-3">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-
-              <input
-                id="device-search"
-                name="device-search"
-                className="flex w-full rounded-r-lg text-white bg-transparent h-full placeholder:text-white/40 px-2 text-base focus:outline-0"
-                placeholder="Search by name or ID"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Device List */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredDevices.map((device) => (
-              <div
-                key={device.id}
-                onClick={() => setSelectedDevice(device)}
-                className={`flex items-center gap-4 px-4 min-h-[72px] py-2 justify-between border-b border-white/10 cursor-pointer hover:bg-white/5 ${
-                  selectedDevice?.id === device.id ? "bg-white/5" : ""
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="flex h-2.5 w-2.5 rounded-full" style={{ backgroundColor: device.color }} />
-                  <div className="flex flex-col">
-                    <p className="text-white text-base font-medium">{device.name}</p>
-                    <p className="text-white/50 text-sm">ID: {device.id}</p>
-                  </div>
+        {/* --- LEFT SIDEBAR: TELEMETRY & COMMANDS --- */}
+        <aside className="w-[350px] shrink-0 border-r border-white/5 bg-[#12141a] p-8 flex flex-col gap-8 shadow-2xl overflow-y-auto scrollbar-hide">
+          
+          {/* Real-time Telemetry Card */}
+          <section className="space-y-4">
+            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-[0.2em]">Active Telemetry</h3>
+            <div className="bg-[#1c1f26] p-5 rounded-2xl border border-white/10 space-y-5 shadow-inner">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                  <svg className="h-7 w-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeWidth={1.5} />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg leading-tight text-gray-100">{robot.name}</h4>
+                  <p className="text-[10px] text-blue-400 font-mono uppercase italic tracking-tighter">ID: {robot.id}</p>
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+                  <span className="text-[9px] text-white/20 uppercase font-black block mb-1 tracking-widest">POS_X</span>
+                  <span className="text-2xl font-mono text-white/90">{robot.pose.x.toFixed(2)}</span>
+                </div>
+                <div className="bg-black/40 p-3 rounded-xl border border-white/5">
+                  <span className="text-[9px] text-white/20 uppercase font-black block mb-1 tracking-widest">POS_Y</span>
+                  <span className="text-2xl font-mono text-white/90">{robot.pose.y.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Autonomous Dispatch Command Center */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-white/30 uppercase tracking-[0.2em]">Quick Missions</h3>
+              <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded text-white/40 border border-white/5">PRESETS</span>
+            </div>
+            <div className="grid gap-3">
+              <button 
+                onClick={() => sendRobotToGoal(8.5, -0.5)}
+                className="group relative overflow-hidden px-6 py-4 bg-blue-600/10 border border-blue-500/30 rounded-xl hover:bg-blue-600 transition-all active:scale-95 text-left"
+              >
+                <span className="block text-xs text-blue-400 group-hover:text-blue-100 uppercase font-bold tracking-tighter">Task: Service Delivery</span>
+                <span className="block text-base font-semibold">Kitchen Area</span>
+              </button>
+
+              <button 
+                onClick={() => sendRobotToGoal(2.0, 4.0)}
+                className="group relative overflow-hidden px-6 py-4 bg-purple-600/10 border border-purple-500/30 rounded-xl hover:bg-purple-600 transition-all active:scale-95 text-left"
+              >
+                <span className="block text-xs text-purple-400 group-hover:text-purple-100 uppercase font-bold tracking-tighter">Task: Guest Greeting</span>
+                <span className="block text-base font-semibold">Main Lobby</span>
+              </button>
+
+              <button 
+                onClick={() => sendRobotToGoal(0.0, 0.0)}
+                className="group relative overflow-hidden px-6 py-4 bg-orange-600/10 border border-orange-500/30 rounded-xl hover:bg-orange-600 transition-all active:scale-95 text-left"
+              >
+                <span className="block text-xs text-orange-400 group-hover:text-orange-100 uppercase font-bold tracking-tighter">Task: Maintenance</span>
+                <span className="block text-base font-semibold">Charging Dock</span>
+              </button>
+            </div>
+          </section>
+
+          {/* Instructions Card */}
+          <section className="bg-white/5 rounded-xl p-4 border border-white/10 border-dashed">
+            <p className="text-[10px] text-white/40 leading-relaxed italic">
+              * Click anywhere on the map to manually dispatch {robot.name} to new coordinates. 
+            </p>
+          </section>
+
+          {/* Battery Tracking */}
+          <section className="mt-auto pt-6 border-t border-white/5 space-y-3">
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Battery Status</span>
+              <span className="text-lg font-mono text-green-500">{robot.battery}%</span>
+            </div>
+            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+              <div 
+                className="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]" 
+                style={{ width: `${robot.battery}%` }} 
+              />
+            </div>
+          </section>
         </aside>
 
-        {/* Map View */}
-        <main className="flex-1 bg-[#181818] relative flex flex-col p-6">
-          <div className="flex-1 rounded-lg border border-white/10 overflow-hidden">
+        {/* --- MAIN MAP VISUALIZATION --- */}
+        <main className="flex-1 relative bg-[#090a0c] p-10 flex items-center justify-center">
+          <div className="h-full w-full max-w-6xl rounded-[3rem] border border-white/5 overflow-hidden relative shadow-[0_0_150px_rgba(0,0,0,1)] bg-[#12141a]">
+            
+            {/* TIKLA-GİT ENTEGRASYONU BURADA */}
             <MapCanvas
-              robots={filteredDevices}
-              selectedRobotId={selectedDevice?.id ?? null}
-              onRobotClick={(r) => setSelectedDevice(r)}
+              robots={[robot]}
+              selectedRobotId={robot.id}
+              onRobotClick={() => {}}
+              onMapClick={(x, y) => sendRobotToGoal(x, y)} // HARİTAYA TIKLANDIĞINDA ÇALIŞIR
             />
+            
+            {/* Heads-Up Display (HUD) */}
+            <div className="absolute top-8 left-8 pointer-events-none space-y-3">
+              <div className="bg-black/60 backdrop-blur-xl px-5 py-2.5 rounded-full border border-white/10 text-[10px] font-mono text-white/60 flex items-center gap-3 shadow-2xl">
+                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                <span className="tracking-widest italic font-bold">LIVE TELEMETRY FEED: 10Hz // FRAME: MAP_MAIN</span>
+              </div>
+            </div>
+
+            {/* Manual Override Indicator */}
+            <div className="absolute bottom-8 right-8 pointer-events-none flex flex-col items-end gap-2">
+              <div className="bg-blue-500/10 border border-blue-500/30 px-3 py-1.5 rounded-lg text-[9px] font-mono text-blue-400 uppercase tracking-widest">
+                Manual Override Active
+              </div>
+              <div className="bg-black/40 backdrop-blur-sm p-3 rounded-2xl border border-white/5 text-[9px] font-mono text-white/20 uppercase tracking-tighter">
+                Click map to override autonomous pathing
+              </div>
+            </div>
           </div>
         </main>
       </div>
@@ -146,4 +220,5 @@ const RobotsLocation = () => {
   );
 };
 
-export default RobotsLocation;
+export default RobotsLocation; 
+
