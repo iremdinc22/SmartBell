@@ -1,22 +1,155 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { getReservations, updateReservationStatus } from "@/services/reservations";
+
+const statusColor = {
+  Confirmed: "#5E8B7E",
+  Pending: "#E2B872",
+  Cancelled: "#D7857B",
+};
+
+// case-insensitive normalize
+function normalizeStatus(s) {
+  const v = String(s ?? "").trim().toLowerCase();
+  if (v === "confirmed") return "Confirmed";
+  if (v === "cancelled" || v === "canceled") return "Cancelled";
+  return "Pending";
+}
+
+// DateOnly: "2026-01-29" -> güvenli parse
+function safeDate(dateOnly) {
+  return new Date(`${dateOnly}T00:00:00`);
+}
+
+function formatDateRange(checkIn, checkOut) {
+  const inDate = safeDate(checkIn);
+  const outDate = safeDate(checkOut);
+  const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" });
+  return `${fmt.format(inDate)} - ${fmt.format(outDate)}`;
+}
 
 const AdminPanel = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const reservations = [
-    { id: '#ZNTH8432', guest: 'Eleanor Vance', dates: 'Oct 24 - Oct 28', room: 'Royal Suite', status: 'Confirmed', color: '#5E8B7E' },
-    { id: '#ZNTH8431', guest: 'Marcus Holloway', dates: 'Nov 01 - Nov 05', room: 'Deluxe King', status: 'Pending', color: '#E2B872' },
-    { id: '#ZNTH8430', guest: 'Clara Oswald', dates: 'Oct 22 - Oct 25', room: 'Junior Suite', status: 'Cancelled', color: '#D7857B' },
-    { id: '#ZNTH8429', guest: 'Arthur Pendragon', dates: 'Nov 10 - Nov 15', room: 'Presidential Suite', status: 'Confirmed', color: '#5E8B7E' },
-  ];
+  // API data
+  const [reservationsRaw, setReservationsRaw] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // (Şimdilik mock: device endpoint yok)
   const devices = [
-    { name: 'LobbyBot 01', status: 'Online', battery: 98, color: '#5E8B7E' },
-    { name: 'Floor 3 Cleaner', status: 'Online', battery: 65, color: '#E2B872' },
-    { name: 'Room Service Bot 04', status: 'Maintenance', battery: 15, color: '#D7857B' },
-    { name: 'PoolBot 02', status: 'Offline', battery: 0, color: '#D7857B' },
+    { name: "LobbyBot 01", status: "Online", battery: 98, color: "#5E8B7E" },
+    { name: "Floor 3 Cleaner", status: "Online", battery: 65, color: "#E2B872" },
+    { name: "Room Service Bot 04", status: "Maintenance", battery: 15, color: "#D7857B" },
+    { name: "PoolBot 02", status: "Offline", battery: 0, color: "#D7857B" },
   ];
+
+  // ✅ UPDATED fetchReservations (array + wrapper support)
+  const fetchReservations = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+
+    const res = await getReservations();
+    console.log("getReservations raw response:", res);
+
+    // ✅ res bazen direkt array geliyor, bazen axios response
+    const payload = res?.data ?? res;
+
+    // 1) Direkt array ise
+    if (Array.isArray(payload)) {
+      setReservationsRaw(payload);
+      return;
+    }
+
+    // 2) ApiResponse wrapper: { data: [...] } / { items: [...] } / { result: [...] }
+    const list = payload?.data ?? payload?.items ?? payload?.result ?? [];
+    if (Array.isArray(list)) {
+      setReservationsRaw(list);
+      return;
+    }
+
+    // 3) Hiçbiri değilse
+    console.warn("Reservations payload is not an array:", payload);
+    setReservationsRaw([]);
+    setError("Reservations response format is unexpected. Check API response shape.");
+  } catch (e) {
+    console.error("fetchReservations error:", e);
+    setReservationsRaw([]);
+    setError(e?.message ?? "Failed to fetch reservations.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  useEffect(() => {
+    fetchReservations();
+  }, []);
+
+  // ✅ API -> UI map
+  const reservations = useMemo(() => {
+    return reservationsRaw.map((r) => {
+      const status = normalizeStatus(r.status);
+
+      const room =
+        r.roomTypeSnapshot && r.roomTypeSnapshot !== "string"
+          ? r.roomTypeSnapshot
+          : r.roomPreference && r.roomPreference !== "string"
+            ? r.roomPreference
+            : "—";
+
+      return {
+        rawId: r.id, // Guid (PUT için)
+        id: r.bookingCode ? `#${r.bookingCode}` : `#${String(r.id).slice(0, 8).toUpperCase()}`,
+        guest: r.fullName ?? "Unknown Guest",
+        dates: formatDateRange(r.checkIn, r.checkOut),
+        room,
+        status,
+        color: statusColor[status] ?? "#999999",
+      };
+    });
+  }, [reservationsRaw]);
+
+  // Search filter
+  const filteredReservations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return reservations;
+
+    return reservations.filter((r) => {
+      return (
+        r.id.toLowerCase().includes(q) ||
+        r.guest.toLowerCase().includes(q) ||
+        r.room.toLowerCase().includes(q) ||
+        r.status.toLowerCase().includes(q)
+      );
+    });
+  }, [reservations, searchQuery]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const pending = filteredReservations.filter((r) => r.status === "Pending").length;
+    const confirmed = filteredReservations.filter((r) => r.status === "Confirmed").length;
+    const cancelled = filteredReservations.filter((r) => r.status === "Cancelled").length;
+    return { pending, confirmed, cancelled };
+  }, [filteredReservations]);
+
+  // Status Update
+  const handleStatusChange = async (rawId, nextStatus) => {
+    const normalized = normalizeStatus(nextStatus);
+
+    // optimistic UI
+    setReservationsRaw((prev) =>
+      prev.map((x) => (x.id === rawId ? { ...x, status: normalized } : x))
+    );
+
+    try {
+      await updateReservationStatus({ id: rawId, status: normalized });
+    } catch (e) {
+      console.error(e);
+      alert("Status update failed.");
+      await fetchReservations(); // revert
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -28,7 +161,10 @@ const AdminPanel = () => {
           </svg>
           <h2 className="font-serif text-xl font-bold tracking-wide text-gray-900 dark:text-white">Zenith Suites</h2>
         </div>
-        <Link to="/admin/login" className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white">
+        <Link
+          to="/admin/login"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+        >
           <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
           </svg>
@@ -48,20 +184,20 @@ const AdminPanel = () => {
             <div className="lg:col-span-2">
               <section>
                 <h2 className="font-serif text-3xl font-bold mb-6 text-gray-900 dark:text-white">Reservation Panel</h2>
-                
+
                 {/* Stats */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
                   <div className="flex flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
                     <p className="font-medium text-gray-600 dark:text-gray-400">Pending</p>
-                    <p className="text-4xl font-bold text-gray-900 dark:text-white">12</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{stats.pending}</p>
                   </div>
                   <div className="flex flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
                     <p className="font-medium text-gray-600 dark:text-gray-400">Confirmed</p>
-                    <p className="text-4xl font-bold text-gray-900 dark:text-white">84</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{stats.confirmed}</p>
                   </div>
                   <div className="flex flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
                     <p className="font-medium text-gray-600 dark:text-gray-400">Cancelled</p>
-                    <p className="text-4xl font-bold text-gray-900 dark:text-white">5</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{stats.cancelled}</p>
                   </div>
                 </div>
 
@@ -79,13 +215,25 @@ const AdminPanel = () => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  <button className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
-                    </svg>
-                    <span>Filter</span>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    Clear
                   </button>
                 </div>
+
+                {/* Loading / Error */}
+                {loading && (
+                  <div className="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-gray-600 dark:text-gray-300">
+                    Loading reservations...
+                  </div>
+                )}
+                {error && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+                    {error}
+                  </div>
+                )}
 
                 {/* Table */}
                 <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -100,24 +248,43 @@ const AdminPanel = () => {
                         <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Action</th>
                       </tr>
                     </thead>
+
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                      {reservations.map((reservation) => (
-                        <tr key={reservation.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      {!loading && filteredReservations.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-600 dark:text-gray-400">
+                            No reservations found.
+                          </td>
+                        </tr>
+                      )}
+
+                      {filteredReservations.map((reservation) => (
+                        <tr key={reservation.rawId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{reservation.id}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">{reservation.guest}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">{reservation.dates}</td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900 dark:text-white">{reservation.room}</td>
+
                           <td className="whitespace-nowrap px-6 py-4 text-sm">
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: reservation.color }}>
+                            <span
+                              className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                              style={{ backgroundColor: reservation.color }}
+                            >
                               {reservation.status}
                             </span>
                           </td>
+
                           <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                            <button className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
-                              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                              </svg>
-                            </button>
+                            <select
+                              className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-gray-900 dark:text-white"
+                              value={reservation.status}
+                              onChange={(e) => handleStatusChange(reservation.rawId, e.target.value)}
+                              title="Update Status"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Confirmed">Confirmed</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
                           </td>
                         </tr>
                       ))}
@@ -137,45 +304,7 @@ const AdminPanel = () => {
                   </Link>
                 </div>
 
-                {/* Device Stats */}
-                <div className="grid grid-cols-1 gap-4 mb-6">
-                  <div className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: '#5E8B7E20', color: '#5E8B7E' }}>
-                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600 dark:text-gray-400">Online</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">8</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: '#D7857B20', color: '#D7857B' }}>
-                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600 dark:text-gray-400">Offline</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">1</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: '#E2B87220', color: '#E2B872' }}>
-                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600 dark:text-gray-400">Maintenance</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-white">2</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Device List */}
+                {/* Device List (static) */}
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
                   <h3 className="font-bold text-lg mb-4 text-gray-900 dark:text-white">Device List</h3>
                   <div className="space-y-4">
@@ -186,17 +315,19 @@ const AdminPanel = () => {
                           <p className="text-sm text-gray-600 dark:text-gray-400">{device.status}</p>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
-                          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" style={{ color: device.color }}>
-                            <path d="M11 3a1 1 0 10-2 0v1a1 1 0 002 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
-                          </svg>
-                          <span>{device.battery > 0 ? `${device.battery}%` : '--%'}</span>
+                          <span>{device.battery > 0 ? `${device.battery}%` : "--%"}</span>
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                    Device section is currently static. Add /api/devices (+ SignalR telemetry) to make it real-time.
+                  </div>
                 </div>
               </section>
             </div>
+
           </div>
         </div>
       </main>
