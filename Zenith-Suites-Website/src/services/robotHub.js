@@ -6,7 +6,6 @@ function createConnection() {
   if (connection) return connection;
 
   connection = new signalR.HubConnectionBuilder()
-    // Backend portunun 5131 ve endpoint'in /hubs/robot olduğundan eminiz
     .withUrl("http://localhost:5131/hubs/robot", { withCredentials: true })
     .withAutomaticReconnect()
     .build();
@@ -27,6 +26,8 @@ export async function connectRobotHub() {
   return conn;
 }
 
+// --- DINLEYICILER (LISTENERS) ---
+
 // Robotun konum verisini dinlemek için
 export function onRobotOdom(callback) {
   const conn = createConnection();
@@ -38,7 +39,20 @@ export function offRobotOdom(callback) {
   conn.off("RobotOdom", callback);
 }
 
-// Otonom Navigasyon komutu göndermek için (YENİ)
+// Robotun durum bildirimlerini dinlemek için (YENİ)
+export function onRobotStatus(callback) {
+  const conn = createConnection();
+  conn.on("ReceiveStatus", callback);
+}
+
+export function offRobotStatus(callback) {
+  const conn = createConnection();
+  conn.off("ReceiveStatus", callback);
+}
+
+// --- KOMUTLAR (INVOKERS) ---
+
+// Otonom Navigasyon komutu göndermek için
 export async function sendMoveRobotRequest(goalPayload) {
   const conn = await connectRobotHub();
   return conn.invoke("MoveRobotRequest", goalPayload);
@@ -56,3 +70,4 @@ export function disconnectRobotHub() {
     connection = null;
   }
 }
+
