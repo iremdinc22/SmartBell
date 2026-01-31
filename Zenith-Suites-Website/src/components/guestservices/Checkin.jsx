@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { verifyFace } from "@/services/faceVerif"; // backend ile iletişim için
+import { useNavigate } from "react-router-dom";
+import { verifyFace } from "@/services/faceVerif";
+
 
 const Checkin = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [bookingCode, setBookingCode] = useState("");
   const [file, setFile] = useState(null);
@@ -113,42 +116,40 @@ const Checkin = () => {
       return;
     }
 
-    setVerifyError(""); 
+    setVerifyError("");
     setFaceRecognitionStatus("processing");
 
     try {
-        const result = await verifyFace(bookingCode.trim().toUpperCase(), file);
-        setFaceRecognitionStatus("success");
-      } catch (err) {
-        setFaceRecognitionStatus("failed");
+      const result = await verifyFace(bookingCode.trim().toUpperCase(), file);
+      setFaceRecognitionStatus("success");
+    } catch (err) {
+      setFaceRecognitionStatus("failed");
 
-        // 1. Backend'den gelen veriyi al
-        let rawData = err.response?.data;
-        let message = "";
+      // 1. Backend'den gelen veriyi al
+      let rawData = err.response?.data;
+      let message = "";
 
-        // 2. Veri tipini kontrol et ve içindeki metni cımbızla çek
-        if (typeof rawData === "object" && rawData !== null) {
-          // Eğer { "error": "...", "message": "..." } gibi bir objeyse metni al
-          message = rawData.message || rawData.error || JSON.stringify(rawData);
-        } else if (typeof rawData === "string") {
-          message = rawData;
-        } else {
-          message = err.message || "An unexpected error occurred.";
-        }
-
-        // 3. Mesajın içindeki "error:" veya "Reservation not found..." kalıntılarını temizle
-        // Regex kullanarak "error:" kelimesini (büyük/küçük harf duyarsız) ve tırnakları siliyoruz
-        const cleanMessage = message
-          .toString()
-          .replace(/^error:\s*/i, "") // En baştaki "error:" yazısını siler
-          .replace(/[{}"]/g, "")      // Parantez ve tırnakları siler
-          .trim();
-
-        setVerifyError(cleanMessage);
+      // 2. Veri tipini kontrol et ve içindeki metni cımbızla çek
+      if (typeof rawData === "object" && rawData !== null) {
+        // Eğer { "error": "...", "message": "..." } gibi bir objeyse metni al
+        message = rawData.message || rawData.error || JSON.stringify(rawData);
+      } else if (typeof rawData === "string") {
+        message = rawData;
+      } else {
+        message = err.message || "An unexpected error occurred.";
       }
+
+      // 3. Mesajın içindeki "error:" veya "Reservation not found..." kalıntılarını temizle
+      // Regex kullanarak "error:" kelimesini (büyük/küçük harf duyarsız) ve tırnakları siliyoruz
+      const cleanMessage = message
+        .toString()
+        .replace(/^error:\s*/i, "") // En baştaki "error:" yazısını siler
+        .replace(/[{}"]/g, "")      // Parantez ve tırnakları siler
+        .trim();
+
+      setVerifyError(cleanMessage);
+    }
   };
-
-
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -181,11 +182,11 @@ const Checkin = () => {
                     <div
                       className="h-2 rounded bg-black dark:bg-white"
                       style={{ width: `${(step / 3) * 100}%` }}
-                    ></div>
+                    />
                   </div>
                 </div>
 
-                <div className="flex w-full max-w-[480px] flex-wrap items-end gap-4 mx-auto">
+                <div className="flex w-full max-w-[480px] flex-col gap-2 mx-auto">
                   <label className="flex flex-col min-w-40 flex-1">
                     <p className="text-black dark:text-white text-base font-medium pb-2">
                       Your Booking Code
@@ -194,14 +195,30 @@ const Checkin = () => {
                       className="form-input flex w-full resize-none overflow-hidden rounded-lg text-black dark:text-white focus:outline-0 focus:ring-0 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-black dark:focus:border-white h-14 placeholder:text-gray-500 p-[15px] text-base"
                       placeholder="Please enter your Booking Code to begin."
                       value={bookingCode}
-                      onChange={(e) => setBookingCode(e.target.value)}
+                      onChange={(e) => {
+                        setBookingCode(e.target.value);
+                        setVerifyError("");
+                      }}
                     />
                   </label>
+
+                  {verifyError && (
+                    <p className="text-sm text-red-600 dark:text-red-400 text-center">
+                      {verifyError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex px-4 py-3 justify-center">
                   <button
-                    onClick={() => setStep(2)}
+                    onClick={() => {
+                      if (!bookingCode.trim()) {
+                        setVerifyError("Please enter your booking code.");
+                        return;
+                      }
+                      setVerifyError("");
+                      setStep(2);
+                    }}
                     className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-black text-white dark:bg-white dark:text-black gap-2 pl-5 text-base font-bold"
                   >
                     <span>Next</span>
@@ -209,6 +226,7 @@ const Checkin = () => {
                 </div>
               </div>
             )}
+
 
             {/* Step 2: Face Recognition */}
             {step === 2 && (
@@ -290,15 +308,15 @@ const Checkin = () => {
                       <p className="text-red-600 dark:text-red-300 text-sm text-center mt-1">
                         {verifyError}
                       </p>
-                      <button 
+                      <button
                         onClick={() => {
                           setFaceRecognitionStatus(null); // Durumu sıfırla
                           setVerifyError("");            // Hata metnini temizle
                           setFile(null);                 // Önceki fotoğraf dosyasını sil
                           // İsteğe bağlı: Canvas'ın içeriğini de temizlemek için:
                           const canvas = canvasRef.current;
-                          if(canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-                        }} 
+                          if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                        }}
                         className="mt-3 bg-red-600 text-white px-4 py-1 rounded-md text-sm font-medium hover:bg-red-700 transition-colors block mx-auto"
                       >
                         Try Again
@@ -324,11 +342,19 @@ const Checkin = () => {
 
                   <div className="flex items-center justify-center gap-4 mt-6">
                     <button
-                      onClick={() => setNeedsAssistance(true)}
+                      onClick={() => {
+                        setNeedsAssistance(true);
+
+                        // Küçük bir UX gecikmesi (opsiyonel ama hoş durur)
+                        setTimeout(() => {
+                          navigate("/admin/robots-location");
+                        }, 800);
+                      }}
                       className="flex min-w-[84px] max-w-[200px] flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-black text-white dark:bg-white dark:text-black gap-2 text-base font-bold"
                     >
                       <span>Yes</span>
                     </button>
+
                     <button
                       onClick={() => setNeedsAssistance(false)}
                       className="flex min-w-[84px] max-w-[200px] flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-transparent text-black dark:text-white border border-black dark:border-white gap-2 text-base font-bold"
