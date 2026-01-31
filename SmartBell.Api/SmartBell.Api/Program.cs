@@ -3,7 +3,7 @@ using SmartBell.Api;
 using SmartBell.Api.Data.DbContext;
 using SmartBell.Api.Hubs;
 using SmartBell.Api.Mapping;
-using SmartBell.Api.Services.Implementations;
+using SmartBell.Api.Services.Implementations.Robot;
 using SmartBell.Api.Services.Interfaces; // AutoMapper profili
 using SmartBell.Api.Services.Services;
 using SmartBell.Api.Services.Services.Robot;
@@ -52,6 +52,12 @@ builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddHostedService<MapPgmToPngWorker>();
 
 builder.Services.AddSingleton<IRobotPoseStore, RobotPoseStore>();
+
+//  NEW: Robot command gateway (Backend -> SignalR -> Python Bridge)
+builder.Services.AddSingleton<IRobotCommandGateway, SignalRRobotCommandGateway>();
+
+//  NEW: Robot task status store (Robot -> Backend -> SignalR)
+builder.Services.AddSingleton<IRobotTaskStatusStore, RobotTaskStatusStore>();
 
 
 // b) Yüz İş Mantığı Servisi (IFaceService) kaydı
