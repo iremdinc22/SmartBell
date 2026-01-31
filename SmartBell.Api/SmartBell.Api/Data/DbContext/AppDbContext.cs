@@ -13,6 +13,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
     public DbSet<Payment> Payments { get; set; } = null!;
     public DbSet<FaceRec> FaceRecs { get; set; } = null!;
     public DbSet<ReservationStatus> ReservationStatuses { get; set; } = null!;
+    // Yeni eklenen DbSet'ler
+    public DbSet<Inquiry> Inquiries => Set<Inquiry>();
+    public DbSet<Feedback> Feedbacks => Set<Feedback>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -169,3 +173,5 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
         );
     }
 }
+
+

@@ -36,51 +36,51 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // (Şimdilik mock: device endpoint yok)
-  const devices = [
-    { name: "LobbyBot 01", status: "Online", battery: 98, color: "#5E8B7E" },
-    { name: "Floor 3 Cleaner", status: "Online", battery: 65, color: "#E2B872" },
-    { name: "Room Service Bot 04", status: "Maintenance", battery: 15, color: "#D7857B" },
-    { name: "PoolBot 02", status: "Offline", battery: 0, color: "#D7857B" },
-  ];
+  // ✅ Tek robot (static) — RobotsLocation.jsx ile aynı değerler
+  const robot = {
+    id: "ZS-VB-001",
+    name: "ValetBot-01",
+    status: "Online",
+    battery: 92,
+  };
 
   // ✅ UPDATED fetchReservations (array + wrapper support)
   const fetchReservations = async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const res = await getReservations();
-    console.log("getReservations raw response:", res);
+      const res = await getReservations();
+      console.log("getReservations raw response:", res);
 
-    // ✅ res bazen direkt array geliyor, bazen axios response
-    const payload = res?.data ?? res;
+      // ✅ res bazen direkt array geliyor, bazen axios response
+      const payload = res?.data ?? res;
 
-    // 1) Direkt array ise
-    if (Array.isArray(payload)) {
-      setReservationsRaw(payload);
-      return;
+      // 1) Direkt array ise
+      if (Array.isArray(payload)) {
+        setReservationsRaw(payload);
+        return;
+      }
+
+      // 2) ApiResponse wrapper: { data: [...] } / { items: [...] } / { result: [...] }
+      const list = payload?.data ?? payload?.items ?? payload?.result ?? [];
+      if (Array.isArray(list)) {
+        setReservationsRaw(list);
+        return;
+      }
+
+      // 3) Hiçbiri değilse
+      console.warn("Reservations payload is not an array:", payload);
+      setReservationsRaw([]);
+      setError("Reservations response format is unexpected. Check API response shape.");
+    } catch (e) {
+      console.error("fetchReservations error:", e);
+      setReservationsRaw([]);
+      setError(e?.message ?? "Failed to fetch reservations.");
+    } finally {
+      setLoading(false);
     }
-
-    // 2) ApiResponse wrapper: { data: [...] } / { items: [...] } / { result: [...] }
-    const list = payload?.data ?? payload?.items ?? payload?.result ?? [];
-    if (Array.isArray(list)) {
-      setReservationsRaw(list);
-      return;
-    }
-
-    // 3) Hiçbiri değilse
-    console.warn("Reservations payload is not an array:", payload);
-    setReservationsRaw([]);
-    setError("Reservations response format is unexpected. Check API response shape.");
-  } catch (e) {
-    console.error("fetchReservations error:", e);
-    setReservationsRaw([]);
-    setError(e?.message ?? "Failed to fetch reservations.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchReservations();
@@ -150,6 +150,16 @@ const AdminPanel = () => {
       await fetchReservations(); // revert
     }
   };
+
+  // battery güvenli clamp
+  const battery = Math.max(0, Math.min(100, Number(robot.battery) || 0));
+  const statusLower = String(robot.status || "").toLowerCase();
+  const statusDot =
+    statusLower === "online"
+      ? "bg-green-500"
+      : statusLower.includes("maintenance")
+        ? "bg-yellow-500"
+        : "bg-red-500";
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -304,25 +314,98 @@ const AdminPanel = () => {
                   </Link>
                 </div>
 
-                {/* Device List (static) */}
+                {/* ✅ Single Robot Card (static) */}
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                  <h3 className="font-bold text-lg mb-4 text-gray-900 dark:text-white">Device List</h3>
-                  <div className="space-y-4">
-                    {devices.map((device, idx) => (
-                      <div key={idx} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{device.name}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{device.status}</p>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-900 dark:text-white">
-                          <span>{device.battery > 0 ? `${device.battery}%` : "--%"}</span>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">Robot Status</h3>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                      {robot.id}
+                    </span>
                   </div>
 
-                  <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                    Device section is currently static. Add /api/devices (+ SignalR telemetry) to make it real-time.
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <svg className="h-5 w-5 text-gray-900 dark:text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2a3 3 0 00-3 3v1H7a3 3 0 00-3 3v7a3 3 0 003 3h10a3 3 0 003-3V9a3 3 0 00-3-3h-2V5a3 3 0 00-3-3zm-1 4V5a1 1 0 012 0v1h-2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white">{robot.name}</p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${statusDot}`} />
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{robot.status}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Battery</p>
+                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                          {battery > 0 ? `${battery}%` : "--%"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                        <div className="h-full bg-black dark:bg-white" style={{ width: `${battery}%` }} />
+                      </div>
+
+                      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                        This panel is static. For live telemetry, use{" "}
+                        <Link to="/admin/robots-location" className="underline">
+                          Robot Location
+                        </Link>
+                        .
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ✅ Admin Shortcuts (en uygun yer: sağ panelin devamı) */}
+                <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                  <h3 className="font-bold text-lg mb-3 text-gray-900 dark:text-white">Admin Shortcuts</h3>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    <Link
+                      to="/admin/inquiries"
+                      className="group rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Inquiries</p>
+                          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                            View messages from the contact / inquiry form.
+                          </p>
+                        </div>
+                        <span className="text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                          →
+                        </span>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/admin/feedbacks"
+                      className="group rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Feedbacks</p>
+                          <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                            Review guest ratings and checkout feedback.
+                          </p>
+                        </div>
+                        <span className="text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
+                          →
+                        </span>
+                      </div>
+                    </Link>
+                  </div>
+
+                  <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                    Tip: Add these to the top nav later if you want a global admin menu.
                   </div>
                 </div>
               </section>

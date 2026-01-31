@@ -1,48 +1,59 @@
-import { useState } from 'react';
+import { useState } from "react";
+import { createFeedback } from "@/services/feedbacks";
 
 const Feedback = ({ onSubmit }) => {
   const [rating, setRating] = useState(0);
   const [selectedAspects, setSelectedAspects] = useState([]);
-  const [otherAspect, setOtherAspect] = useState('');
-  const [comments, setComments] = useState('');
-  const [stayAgain, setStayAgain] = useState('');
+  const [otherAspect, setOtherAspect] = useState("");
+  const [comments, setComments] = useState("");
+  const [stayAgain, setStayAgain] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const aspects = [
-    'Room cleanliness',
-    'Staff friendliness',
-    'Robot check-in/check-out experience',
-    'Food & beverages',
-    'Facilities (Pool, Spa, Gym, etc.)',
-    'Room comfort',
-    'Entertainment options'
+    "Room cleanliness",
+    "Staff friendliness",
+    "Robot check-in/check-out experience",
+    "Food & beverages",
+    "Facilities (Pool, Spa, Gym, etc.)",
+    "Room comfort",
+    "Entertainment options",
   ];
 
   const handleAspectToggle = (aspect) => {
-    setSelectedAspects(prev =>
-      prev.includes(aspect)
-        ? prev.filter(a => a !== aspect)
-        : [...prev, aspect]
+    setSelectedAspects((prev) =>
+      prev.includes(aspect) ? prev.filter((a) => a !== aspect) : [...prev, aspect]
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    if (onSubmit) {
-      onSubmit({
-        rating,
-        aspects: [...selectedAspects, otherAspect].filter(Boolean),
-        comments,
-        stayAgain
-      });
+
+    const payload = {
+      rating,
+      tags: selectedAspects,
+      other: otherAspect,
+      comment: comments,
+      stayAgain,
+    };
+
+    try {
+      await createFeedback(payload);
+      setSubmitted(true);
+
+      if (onSubmit) onSubmit(payload);
+    } catch (err) {
+      console.error("createFeedback error:", err);
+      alert("Something went wrong. Please try again.");
     }
   };
+
 
   if (submitted) {
     return (
       <div className="flex flex-col gap-6 rounded-xl border border-gray-200 dark:border-gray-700 p-8 bg-white dark:bg-gray-800 text-center">
-        <h2 className="font-serif text-3xl md:text-4xl font-bold text-black dark:text-white">Thank You!</h2>
+        <h2 className="font-serif text-3xl md:text-4xl font-bold text-black dark:text-white">
+          Thank You!
+        </h2>
         <p className="text-lg text-gray-600 dark:text-gray-400">
           Thank you for your valuable feedback. We hope to welcome you again soon!
         </p>
@@ -68,7 +79,9 @@ const Feedback = ({ onSubmit }) => {
             Overall Satisfaction
           </h2>
           <div>
-            <p className="text-black dark:text-white text-base pb-3">How would you rate your overall stay?</p>
+            <p className="text-black dark:text-white text-base pb-3">
+              How would you rate your overall stay?
+            </p>
             <div className="flex flex-wrap gap-2 justify-start">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -77,12 +90,18 @@ const Feedback = ({ onSubmit }) => {
                   onClick={() => setRating(star)}
                   className="flex flex-col items-center gap-2 py-2.5 text-center w-16 cursor-pointer group"
                 >
-                  <div className={`rounded-full p-3.5 transition-colors ${
-                    rating >= star 
-                      ? 'bg-yellow-500' 
-                      : 'bg-gray-200 dark:bg-gray-700 group-hover:bg-gray-300 dark:group-hover:bg-gray-600'
-                  }`}>
-                    <svg className={`w-6 h-6 ${rating >= star ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`} fill="currentColor" viewBox="0 0 20 20">
+                  <div
+                    className={`rounded-full p-3.5 transition-colors ${rating >= star
+                        ? "bg-yellow-500"
+                        : "bg-gray-200 dark:bg-gray-700 group-hover:bg-gray-300 dark:group-hover:bg-gray-600"
+                      }`}
+                  >
+                    <svg
+                      className={`w-6 h-6 ${rating >= star ? "text-white" : "text-gray-600 dark:text-gray-400"
+                        }`}
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                   </div>
@@ -158,7 +177,7 @@ const Feedback = ({ onSubmit }) => {
             Would You Stay Again?
           </h2>
           <div className="flex flex-col sm:flex-row gap-3">
-            {['Yes, definitely', 'Maybe', 'No'].map((option) => (
+            {["Yes, definitely", "Maybe", "No"].map((option) => (
               <label
                 key={option}
                 className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer flex-1 transition-colors"
@@ -191,3 +210,5 @@ const Feedback = ({ onSubmit }) => {
 };
 
 export default Feedback;
+
+

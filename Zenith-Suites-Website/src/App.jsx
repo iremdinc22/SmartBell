@@ -13,6 +13,8 @@ import PaymentPage from './components/payment/PaymentPage'
 import AdminLoginPage from './components/admin/AdminLoginPage'
 import AdminPanel from './components/admin/AdminPanel'
 import RobotsLocation from './components/admin/RobotsLocation'
+import AdminInquiries from "./components/admin/AdminInquiries";
+import AdminFeedbacks from "./components/admin/AdminFeedbacks";
 import GuestServices from './components/guestservices/GuestServices'
 import Checkin from './components/guestservices/Checkin'
 import Checkout from './components/guestservices/Checkout'
@@ -29,6 +31,9 @@ function App() {
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin/dashboard" element={<AdminPanel />} />
         <Route path="/admin/robots-location" element={<RobotsLocation />} />
+        <Route path="/admin/inquiries" element={<AdminInquiries />} />
+        <Route path="/admin/feedbacks" element={<AdminFeedbacks />} />
+
         
         
         {/* Main Website Routes */}
