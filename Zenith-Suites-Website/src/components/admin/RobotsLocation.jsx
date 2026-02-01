@@ -107,7 +107,7 @@ const RobotsLocation = () => {
     <div className="flex h-screen w-full flex-col bg-[#0f1115] text-white font-sans">
       <header className="flex items-center justify-between border-b border-white/5 px-8 py-5 bg-[#161920] shrink-0 shadow-lg">
         <div className="flex items-center gap-5">
-          <Link to="/admin/dashboard" className="p-2 hover:bg-white/5 rounded-full transition-colors">
+          <Link to="/" className="p-2 hover:bg-white/5 rounded-full transition-colors">
             <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -227,4 +227,6 @@ const RobotsLocation = () => {
 };
 
 export default RobotsLocation;
+
+
 
