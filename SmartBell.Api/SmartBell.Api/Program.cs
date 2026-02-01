@@ -51,6 +51,9 @@ builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHostedService<EmailWorker>();
 builder.Services.AddHostedService<MapPgmToPngWorker>();
 
+// NEW: Face API başlatma servisi backendle
+builder.Services.AddHostedService<FaceApiStarterService>();
+
 builder.Services.AddSingleton<IRobotPoseStore, RobotPoseStore>();
 
 //  NEW: Robot command gateway (Backend -> SignalR -> Python Bridge)
