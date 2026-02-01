@@ -54,7 +54,7 @@ public class ReservationService : IReservationService
         var timezoneId = OperatingSystem.IsWindows() ? "Turkey Standard Time" : "Europe/Istanbul";
         var turkeyZone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
 
-        var checkInLocal = dto.CheckIn.ToDateTime(new TimeOnly(14, 0));
+        var checkInLocal = dto.CheckIn.ToDateTime(new TimeOnly(10, 0));
         var checkInUtc = TimeZoneInfo.ConvertTimeToUtc(checkInLocal, turkeyZone);
 
         var checkOutLocal = dto.CheckOut.ToDateTime(new TimeOnly(12, 0));
