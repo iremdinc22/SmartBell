@@ -133,3 +133,4 @@ app.MapHub<RobotHub>("/hubs/robot");
 
 // 12) Run
 app.Run();
+
