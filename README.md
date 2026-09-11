@@ -3,7 +3,7 @@
 
 > **Zenith Suites** is a next-generation smart hotel system that seamlessly integrates  
 > **web technologies, robotic services, secure identity verification, and rule-based intelligence**  
-> to deliver a futuristic, efficient, and human-centered hospitality experience.
+> to deliver a futuristic, efficient, and human-centered hospitality experience
 
 ---
 
@@ -122,7 +122,7 @@ This approach ensures:
 
 ---
 
-## 👩‍💻 Team
+## 👩‍💻 Team 
 
 This project was developed as a **Computer & Electrical Engineering capstone project**.
 
